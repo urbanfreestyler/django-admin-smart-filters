@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Sequence
 
 from django_smart_filters.contracts import FilterSpec, QueryHook, WidgetHook
 from django_smart_filters.params import resolve_param_name
+from django_smart_filters.validation import FilterValidationError, validate_filter_spec
 
 
 @dataclass(frozen=True)
@@ -27,7 +28,7 @@ def _is_multivalue(kind: str) -> bool:
 
 
 def normalize_class_declaration(declaration: ClassFilterDeclaration) -> FilterSpec:
-    return FilterSpec(
+    spec = FilterSpec(
         field_name=declaration.field_name,
         alias=declaration.alias,
         filter_kind=declaration.filter_kind,
@@ -39,6 +40,8 @@ def normalize_class_declaration(declaration: ClassFilterDeclaration) -> FilterSp
             multivalue=_is_multivalue(declaration.filter_kind),
         ),
     )
+    validate_filter_spec(spec)
+    return spec
 
 
 def normalize_builder_declaration(declaration: "BuilderFilterDeclaration") -> FilterSpec:
@@ -61,4 +64,18 @@ def normalize_declarations(declarations: Iterable[object]) -> list[FilterSpec]:
         else:
             spec = normalize_class_declaration(declaration)
         specs.append(spec)
+    _validate_param_collisions(specs)
     return specs
+
+
+def _validate_param_collisions(specs: Sequence[FilterSpec]) -> None:
+    seen: dict[str, str] = {}
+    for spec in specs:
+        if spec.param_name in seen:
+            previous = seen[spec.param_name]
+            raise FilterValidationError(
+                "Parameter name collision for "
+                f"'{spec.param_name}' between fields '{previous}' and '{spec.field_name}'. "
+                "Set a unique alias on one declaration to resolve the conflict."
+            )
+        seen[spec.param_name] = spec.field_name
