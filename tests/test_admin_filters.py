@@ -64,6 +64,9 @@ class _BaseSmartAdmin(admin.ModelAdmin):
     def get_smart_filter_base_queryset(self, request):
         return RecordingQuerySet()
 
+    def changelist_view(self, request, extra_context=None):
+        return extra_context or {}
+
 
 def _admin_class(declarations):
     from django_smart_filters.admin import SmartFilterAdminMixin
@@ -131,3 +134,23 @@ def test_default_admin_usage_requires_no_changelist_replacement() -> None:
     admin_instance = _make_admin(_all_filter_declarations())
 
     assert admin_instance.change_list_template is None
+
+
+def test_changelist_context_includes_all_five_filter_kinds_and_templates() -> None:
+    admin_instance = _make_admin(_all_filter_declarations())
+    request = RequestFactory().get("/admin/tests/adminfiltertestmodel/", data={"status": "open"})
+
+    context = admin_instance.changelist_view(request)
+
+    assert context["smart_filter_controls_template"] == "admin/django_smart_filters/filter_controls.html"
+    assert context["smart_filter_active_bar_template"] == "admin/django_smart_filters/active_filters_bar.html"
+
+    controls = context["filter_controls"]
+    assert len(controls) == 5
+    assert {control["kind"] for control in controls} == {
+        "dropdown",
+        "multi_select",
+        "date_range",
+        "numeric_range",
+        "boolean_toggle",
+    }

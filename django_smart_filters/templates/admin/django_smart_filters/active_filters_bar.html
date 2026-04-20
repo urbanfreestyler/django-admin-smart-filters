@@ -1,0 +1,9 @@
+{% load i18n %}
+<div class="django-smart-filters-active-bar" data-smart-filters-active-bar="true">
+  {% if smart_filter_state %}
+    <span class="django-smart-filters-active-bar__summary">{% translate "Active filters" %}: {{ smart_filter_state|length }}</span>
+    <button type="submit" name="_smart_filter_reset" value="1">{% translate "Reset all filters" %}</button>
+  {% else %}
+    <span class="django-smart-filters-active-bar__summary">{% translate "No active filters" %}</span>
+  {% endif %}
+</div>

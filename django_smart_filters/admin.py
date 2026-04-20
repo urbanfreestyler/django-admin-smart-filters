@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from django.http import HttpRequest
+from django.template.loader import render_to_string
 
 from django_smart_filters.declarations import normalize_declarations
 from django_smart_filters.query import apply_filter_state
@@ -43,14 +44,23 @@ class SmartFilterAdminMixin:
     def changelist_view(self, request: HttpRequest, extra_context: dict[str, Any] | None = None):
         specs = self.get_smart_filter_specs()
         state = parse_filter_state(specs, request.GET)
+        controls = self._build_filter_controls(specs, state)
 
         context = dict(extra_context or {})
         context["smart_filter_controls_template"] = self.smart_filter_controls_template
         context["smart_filter_active_bar_template"] = self.smart_filter_active_bar_template
-        context["filter_controls"] = self._build_filter_controls(specs, state)
+        context["filter_controls"] = controls
         context["smart_filter_state"] = state
+        context["smart_filter_controls_html"] = self.render_smart_filter_controls(controls)
+        context["smart_filter_active_bar_html"] = self.render_smart_filter_active_bar(state)
 
         return super().changelist_view(request, extra_context=context)
+
+    def render_smart_filter_controls(self, controls: list[dict[str, Any]]) -> str:
+        return render_to_string(self.smart_filter_controls_template, {"filter_controls": controls})
+
+    def render_smart_filter_active_bar(self, state: dict[str, Any]) -> str:
+        return render_to_string(self.smart_filter_active_bar_template, {"smart_filter_state": state})
 
     def _build_filter_controls(self, specs, state: dict[str, Any]) -> list[dict[str, Any]]:
         controls: list[dict[str, Any]] = []
