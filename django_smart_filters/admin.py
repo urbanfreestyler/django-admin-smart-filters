@@ -7,6 +7,11 @@ from typing import Any
 from django.http import HttpRequest
 from django.template.loader import render_to_string
 
+from django_smart_filters.chips import (
+    build_active_filter_chips,
+    build_remove_one_url,
+    build_reset_all_url,
+)
 from django_smart_filters.declarations import normalize_declarations
 from django_smart_filters.query import apply_filter_state
 from django_smart_filters.state import parse_filter_state
@@ -45,22 +50,36 @@ class SmartFilterAdminMixin:
         specs = self.get_smart_filter_specs()
         state = parse_filter_state(specs, request.GET)
         controls = self._build_filter_controls(specs, state)
+        labels = {spec.field_name: spec.field_name.replace("_", " ").title() for spec in specs}
+        chips = build_active_filter_chips(specs, state, labels)
+        for chip in chips:
+            chip["remove_url"] = build_remove_one_url(request.GET, chip)
+        managed_params = [spec.param_name for spec in specs]
+        reset_all_url = build_reset_all_url(request.GET, managed_params)
 
         context = dict(extra_context or {})
         context["smart_filter_controls_template"] = self.smart_filter_controls_template
         context["smart_filter_active_bar_template"] = self.smart_filter_active_bar_template
         context["filter_controls"] = controls
         context["smart_filter_state"] = state
+        context["active_filter_chips"] = chips
+        context["reset_all_url"] = reset_all_url
         context["smart_filter_controls_html"] = self.render_smart_filter_controls(controls)
-        context["smart_filter_active_bar_html"] = self.render_smart_filter_active_bar(state)
+        context["smart_filter_active_bar_html"] = self.render_smart_filter_active_bar(chips, reset_all_url)
 
         return super().changelist_view(request, extra_context=context)
 
     def render_smart_filter_controls(self, controls: list[dict[str, Any]]) -> str:
         return render_to_string(self.smart_filter_controls_template, {"filter_controls": controls})
 
-    def render_smart_filter_active_bar(self, state: dict[str, Any]) -> str:
-        return render_to_string(self.smart_filter_active_bar_template, {"smart_filter_state": state})
+    def render_smart_filter_active_bar(self, chips: list[dict[str, Any]], reset_all_url: str) -> str:
+        return render_to_string(
+            self.smart_filter_active_bar_template,
+            {
+                "active_filter_chips": chips,
+                "reset_all_url": reset_all_url,
+            },
+        )
 
     def _build_filter_controls(self, specs, state: dict[str, Any]) -> list[dict[str, Any]]:
         controls: list[dict[str, Any]] = []
@@ -77,7 +96,7 @@ class SmartFilterAdminMixin:
                 }
             )
         return controls
-    
+
     def _control_options(self, filter_kind: str, value: Any) -> list[dict[str, str]]:
         if filter_kind == "boolean_toggle":
             return [

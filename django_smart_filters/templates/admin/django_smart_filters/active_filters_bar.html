@@ -1,8 +1,13 @@
 {% load i18n %}
 <div class="django-smart-filters-active-bar" data-smart-filters-active-bar="true">
-  {% if smart_filter_state %}
-    <span class="django-smart-filters-active-bar__summary">{% translate "Active filters" %}: {{ smart_filter_state|length }}</span>
-    <button type="submit" name="_smart_filter_reset" value="1">{% translate "Reset all filters" %}</button>
+  {% if active_filter_chips %}
+    <span class="django-smart-filters-active-bar__summary">{% translate "Active filters" %}</span>
+    <ul class="django-smart-filters-active-bar__chips">
+      {% for chip in active_filter_chips %}
+        <li class="django-smart-filters-active-bar__chip">{% include "admin/django_smart_filters/chip.html" with chip=chip %}</li>
+      {% endfor %}
+    </ul>
+    <a href="{{ reset_all_url }}" class="django-smart-filters-active-bar__reset">{% translate "Reset all filters" %}</a>
   {% else %}
     <span class="django-smart-filters-active-bar__summary">{% translate "No active filters" %}</span>
   {% endif %}

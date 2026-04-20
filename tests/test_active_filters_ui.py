@@ -3,7 +3,6 @@ from __future__ import annotations
 from urllib.parse import parse_qsl
 
 import pytest
-from django.conf import settings
 from django.http import QueryDict
 
 from django_smart_filters.builder import Filter
@@ -14,11 +13,6 @@ from django_smart_filters.chips import (
     build_remove_one_url,
     build_reset_all_url,
 )
-
-
-if not settings.configured:
-    settings.configure(DEFAULT_CHARSET="utf-8")
-
 
 def _specs():
     return [
@@ -78,6 +72,20 @@ def test_remove_one_url_drops_target_chip_only_and_preserves_other_criteria() ->
     assert ("category__in", "alpha") not in pairs
 
 
+def test_remove_one_flow_rebuilds_chip_state_without_targeted_chip() -> None:
+    specs = _specs()
+    labels = {"status": "Status", "category": "Category"}
+    initial_query = QueryDict("status=open&category__in=alpha&category__in=beta")
+    initial_state = parse_filter_state(specs, initial_query)
+    initial_chips = build_active_filter_chips(specs, initial_state, labels)
+
+    target = next(chip for chip in initial_chips if chip["label"] == "Category: alpha")
+    next_state = parse_filter_state(specs, QueryDict(build_remove_one_url(initial_query, target).lstrip("?")))
+    next_chips = build_active_filter_chips(specs, next_state, labels)
+
+    assert [chip["label"] for chip in next_chips] == ["Status: open", "Category: beta"]
+
+
 def test_reset_all_url_removes_managed_filter_params_only() -> None:
     specs = _specs()
     managed_params = [spec.param_name for spec in specs]
@@ -91,6 +99,20 @@ def test_reset_all_url_removes_managed_filter_params_only() -> None:
     assert ("score_max", "20") not in pairs
     assert ("page", "2") in pairs
     assert ("o", "-created") in pairs
+
+
+def test_reset_all_flow_results_in_no_active_chips() -> None:
+    specs = _specs()
+    managed_params = [spec.param_name for spec in specs]
+    labels = {"status": "Status", "category": "Category", "score": "Score"}
+    initial_query = QueryDict("status=open&category__in=alpha&score_min=10")
+
+    reset_state = parse_filter_state(
+        specs,
+        QueryDict(build_reset_all_url(initial_query, managed_params).lstrip("?")),
+    )
+
+    assert build_active_filter_chips(specs, reset_state, labels) == []
 
 
 @pytest.mark.parametrize(

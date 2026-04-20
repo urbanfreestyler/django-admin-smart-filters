@@ -154,3 +154,34 @@ def test_changelist_context_includes_all_five_filter_kinds_and_templates() -> No
         "numeric_range",
         "boolean_toggle",
     }
+
+
+def test_changelist_context_exposes_chip_state_and_reset_url() -> None:
+    admin_instance = _make_admin(_all_filter_declarations())
+    request = RequestFactory().get(
+        "/admin/tests/adminfiltertestmodel/",
+        data={"status": "open", "category__in": ["alpha", "beta"], "page": "2"},
+    )
+
+    context = admin_instance.changelist_view(request)
+
+    chip_labels = [chip["label"] for chip in context["active_filter_chips"]]
+    assert chip_labels == ["Status: open", "Category: alpha", "Category: beta"]
+    assert context["reset_all_url"] == "?page=2"
+
+
+def test_active_bar_html_renders_remove_links_and_reset_control() -> None:
+    admin_instance = _make_admin(_all_filter_declarations())
+    request = RequestFactory().get(
+        "/admin/tests/adminfiltertestmodel/",
+        data={"status": "open", "category__in": ["alpha", "beta"], "page": "3"},
+    )
+
+    context = admin_instance.changelist_view(request)
+    html = context["smart_filter_active_bar_html"]
+
+    assert "Reset all filters" in html
+    assert "Status: open" in html
+    assert "Category: alpha" in html
+    assert "Category: beta" in html
+    assert "?category__in=beta&amp;page=3&amp;status=open" in html
