@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping, Protocol
+from typing import Any, ClassVar, Mapping, Protocol
 
 
 class QueryHook(Protocol):
@@ -20,6 +20,13 @@ class WidgetHook(Protocol):
         ...
 
 
+class FilterComponent:
+    """Base contract for custom filter component extensions."""
+
+    key: ClassVar[str]
+    filter_kind: ClassVar[str] = "dropdown"
+
+
 @dataclass(frozen=True)
 class FilterSpec:
     """Normalized internal filter declaration contract."""
@@ -30,3 +37,4 @@ class FilterSpec:
     query_hook: QueryHook | None
     widget_hook: WidgetHook | None
     param_name: str
+    component_key: str | None = None

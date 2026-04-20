@@ -231,3 +231,13 @@ Contributions are welcome:
 
 MIT License (recommended)
 
+---
+
+## Implementation Guides
+
+Official extension and theming docs:
+
+* `docs/extension_hooks.md`
+* `docs/theme_adapters.md`
+* `docs/examples.md`
+

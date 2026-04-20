@@ -7,6 +7,7 @@ from typing import Iterable, Sequence
 
 from django_smart_filters.contracts import FilterSpec, QueryHook, WidgetHook
 from django_smart_filters.params import resolve_param_name
+from django_smart_filters.registry import resolve_filter_component
 from django_smart_filters.validation import FilterValidationError, validate_filter_spec
 
 
@@ -17,6 +18,7 @@ class ClassFilterDeclaration:
     alias: str | None = None
     query_hook: QueryHook | None = None
     widget_hook: WidgetHook | None = None
+    component_key: str | None = None
 
 
 def DropdownFilter(field_name: str, *, alias: str | None = None) -> ClassFilterDeclaration:
@@ -28,17 +30,26 @@ def _is_multivalue(kind: str) -> bool:
 
 
 def normalize_class_declaration(declaration: ClassFilterDeclaration) -> FilterSpec:
+    filter_kind = declaration.filter_kind
+    if declaration.component_key is not None:
+        try:
+            component = resolve_filter_component(declaration.component_key)
+        except ValueError as exc:
+            raise FilterValidationError(str(exc)) from exc
+        filter_kind = component.filter_kind
+
     spec = FilterSpec(
         field_name=declaration.field_name,
         alias=declaration.alias,
-        filter_kind=declaration.filter_kind,
+        filter_kind=filter_kind,
         query_hook=declaration.query_hook,
         widget_hook=declaration.widget_hook,
         param_name=resolve_param_name(
             declaration.field_name,
             alias=declaration.alias,
-            multivalue=_is_multivalue(declaration.filter_kind),
+            multivalue=_is_multivalue(filter_kind),
         ),
+        component_key=declaration.component_key,
     )
     validate_filter_spec(spec)
     return spec
@@ -51,6 +62,7 @@ def normalize_builder_declaration(declaration: "BuilderFilterDeclaration") -> Fi
         alias=declaration.alias,
         query_hook=declaration.query_hook,
         widget_hook=declaration.widget_hook,
+        component_key=declaration.component_key,
     )
     return normalize_class_declaration(class_declaration)
 

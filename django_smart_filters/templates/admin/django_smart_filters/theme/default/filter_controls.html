@@ -1,0 +1,67 @@
+{% load i18n static %}
+<div class="django-smart-filters-controls">
+  {% for control in filter_controls %}
+    <div class="django-smart-filters-control django-smart-filters-control--{{ control.kind|escape }}">
+      <label class="django-smart-filters-control__label" for="smart-filter-{{ control.param_name|escape }}">{{ control.label }}</label>
+
+      {% if control.kind == "dropdown" %}
+        <select id="smart-filter-{{ control.param_name|escape }}" name="{{ control.param_name|escape }}">
+          <option value="">{% translate "Any" %}</option>
+          {% for option in control.options %}
+            <option value="{{ option.value|escape }}" {% if option.value == control.value %}selected{% endif %}>
+              {{ option.label }}
+            </option>
+          {% endfor %}
+        </select>
+
+      {% elif control.kind == "multi_select" %}
+        <select id="smart-filter-{{ control.param_name|escape }}" name="{{ control.param_name|escape }}" multiple>
+          {% for option in control.options %}
+            <option value="{{ option.value|escape }}" selected>{{ option.label }}</option>
+          {% endfor %}
+        </select>
+
+      {% elif control.kind == "date_range" %}
+        <input
+          id="smart-filter-{{ control.param_name|escape }}-start"
+          name="{{ control.param_name|escape }}_start"
+          type="date"
+          value="{{ control.value.start|default_if_none:'' }}"
+        />
+        <input
+          id="smart-filter-{{ control.param_name|escape }}-end"
+          name="{{ control.param_name|escape }}_end"
+          type="date"
+          value="{{ control.value.end|default_if_none:'' }}"
+        />
+
+      {% elif control.kind == "numeric_range" %}
+        <input
+          id="smart-filter-{{ control.param_name|escape }}-min"
+          name="{{ control.param_name|escape }}_min"
+          type="number"
+          step="any"
+          value="{{ control.value.min|default_if_none:'' }}"
+        />
+        <input
+          id="smart-filter-{{ control.param_name|escape }}-max"
+          name="{{ control.param_name|escape }}_max"
+          type="number"
+          step="any"
+          value="{{ control.value.max|default_if_none:'' }}"
+        />
+
+      {% elif control.kind == "boolean_toggle" %}
+        <select id="smart-filter-{{ control.param_name|escape }}" name="{{ control.param_name|escape }}">
+          <option value="">{% translate "Any" %}</option>
+          <option value="true" {% if control.value is True %}selected{% endif %}>{% translate "Yes" %}</option>
+          <option value="false" {% if control.value is False %}selected{% endif %}>{% translate "No" %}</option>
+        </select>
+
+      {% elif control.kind == "autocomplete" %}
+        {% include "admin/django_smart_filters/autocomplete_control.html" with control=control %}
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+<script src="{% static 'django_smart_filters/autocomplete.js' %}"></script>

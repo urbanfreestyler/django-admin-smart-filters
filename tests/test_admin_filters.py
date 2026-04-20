@@ -12,6 +12,7 @@ from django.test import RequestFactory
 
 from django_smart_filters.builder import Filter
 from django_smart_filters.declarations import DropdownFilter
+from django_smart_filters.theme import ThemeAdapter
 
 
 if not settings.configured:
@@ -44,6 +45,7 @@ django.setup()
 class AdminFilterTestModel(models.Model):
     status = models.CharField(max_length=50)
     category = models.CharField(max_length=50)
+    assignee = models.CharField(max_length=50, blank=True)
     created = models.DateField(null=True)
     score = models.FloatField(null=True)
     active = models.BooleanField(default=False)
@@ -89,6 +91,7 @@ def _all_filter_declarations():
         Filter.field("created").date_range(),
         Filter.field("score").numeric_range(),
         Filter.field("active").boolean_toggle(),
+        Filter.field("assignee").autocomplete(),
     ]
 
 
@@ -142,18 +145,32 @@ def test_changelist_context_includes_all_five_filter_kinds_and_templates() -> No
 
     context = admin_instance.changelist_view(request)
 
-    assert context["smart_filter_controls_template"] == "admin/django_smart_filters/filter_controls.html"
-    assert context["smart_filter_active_bar_template"] == "admin/django_smart_filters/active_filters_bar.html"
+    assert context["smart_filter_controls_template"] == "admin/django_smart_filters/theme/default/filter_controls.html"
+    assert context["smart_filter_active_bar_template"] == "admin/django_smart_filters/theme/default/active_filters_bar.html"
 
     controls = context["filter_controls"]
-    assert len(controls) == 5
+    assert len(controls) == 6
     assert {control["kind"] for control in controls} == {
         "dropdown",
         "multi_select",
         "date_range",
         "numeric_range",
         "boolean_toggle",
+        "autocomplete",
     }
+
+
+def test_autocomplete_control_context_includes_endpoint_and_page_metadata() -> None:
+    admin_instance = _make_admin(_all_filter_declarations())
+    request = RequestFactory().get("/admin/tests/adminfiltertestmodel/")
+
+    context = admin_instance.changelist_view(request)
+    autocomplete_control = next(control for control in context["filter_controls"] if control["kind"] == "autocomplete")
+
+    assert autocomplete_control["endpoint_url"].endswith("/smart-filters/autocomplete/")
+    assert autocomplete_control["min_query_length"] == 2
+    assert autocomplete_control["page_size"] == 20
+    assert autocomplete_control["options"] == []
 
 
 def test_changelist_context_exposes_chip_state_and_reset_url() -> None:
@@ -185,3 +202,23 @@ def test_active_bar_html_renders_remove_links_and_reset_control() -> None:
     assert "Category: alpha" in html
     assert "Category: beta" in html
     assert "?category__in=beta&amp;page=3&amp;status=open" in html
+
+
+def test_theme_adapter_changes_render_templates_without_changing_query_semantics() -> None:
+    class AdapterAdmin(_admin_class(_all_filter_declarations())):
+        smart_filter_theme_adapter = ThemeAdapter(
+            name="compat",
+            controls_template="admin/django_smart_filters/filter_controls.html",
+            active_bar_template="admin/django_smart_filters/active_filters_bar.html",
+        )
+
+    admin_instance = AdapterAdmin(AdminFilterTestModel, AdminSite())
+    request = RequestFactory().get("/admin/tests/adminfiltertestmodel/", data={"status": "open"})
+
+    queryset = admin_instance.get_queryset(request)
+    context = admin_instance.changelist_view(request)
+
+    assert queryset.calls == [{"status": "open"}]
+    assert context["smart_filter_theme_adapter"] == "compat"
+    assert context["smart_filter_controls_template"] == "admin/django_smart_filters/filter_controls.html"
+    assert context["smart_filter_active_bar_template"] == "admin/django_smart_filters/active_filters_bar.html"

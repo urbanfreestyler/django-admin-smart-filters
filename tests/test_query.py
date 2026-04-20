@@ -114,6 +114,7 @@ def test_query_hook_runs_after_base_normalization() -> None:
         query_hook=query_hook,
         widget_hook=None,
         param_name="active",
+        component_key=None,
     )
 
     updated = apply_filter_value(RecordingQuerySet(), spec, "true")

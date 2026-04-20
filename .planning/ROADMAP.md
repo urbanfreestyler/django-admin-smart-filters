@@ -4,8 +4,8 @@
 
 - [x] **Phase 1: Declarative Filter API Foundation** - Developers can define smart admin filters with a stable, list_filter-compatible contract. (completed 2026-04-20)
 - [x] **Phase 2: Core Built-in Filters & Changelist UX** - Users can apply and manage common filters in default Django Admin with reliable URL-based state. (completed 2026-04-20)
-- [ ] **Phase 3: Async Autocomplete & Scale Performance** - Users can filter high-cardinality datasets through responsive, server-driven autocomplete.
-- [ ] **Phase 4: Theme Adapters, Extension Hooks & Docs** - Developers can adapt rendering, extend filter behavior, and ship custom filters using documented extension points.
+- [x] **Phase 3: Async Autocomplete & Scale Performance** - Users can filter high-cardinality datasets through responsive, server-driven autocomplete. (completed 2026-04-20)
+- [x] **Phase 4: Theme Adapters, Extension Hooks & Docs** - Developers can adapt rendering, extend filter behavior, and ship custom filters using documented extension points. (completed 2026-04-20)
 
 ## Phase Details
 
@@ -52,9 +52,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Build and test the backend autocomplete contract (validated request parsing, server-side search, deterministic pagination, minimal payload).
-- [ ] 03-02-PLAN.md — Expose autocomplete through SmartFilterAdminMixin endpoint wiring with paginated JSON responses and fail-fast guards.
-- [ ] 03-03-PLAN.md — Implement admin autocomplete control + debounced client runtime with stale-response protection and lazy option loading.
+- [x] 03-01-PLAN.md — Build and test the backend autocomplete contract (validated request parsing, server-side search, deterministic pagination, minimal payload).
+- [x] 03-02-PLAN.md — Expose autocomplete through SmartFilterAdminMixin endpoint wiring with paginated JSON responses and fail-fast guards.
+- [x] 03-03-PLAN.md — Implement admin autocomplete control + debounced client runtime with stale-response protection and lazy option loading.
 **UI hint**: yes
 
 ### Phase 4: Theme Adapters, Extension Hooks & Docs
@@ -67,7 +67,12 @@ Plans:
   3. Developer can implement a custom filter type by extending the base `FilterComponent` abstraction and registering it in the framework.
   4. Developer can customize filter query behavior and widget behavior through documented pluggable hooks.
   5. Developer can implement all core v1 filter flows by following official copyable documentation examples.
-**Plans**: TBD
+**Plans**: 3 plans
+ 
+Plans:
+- [x] 04-01-PLAN.md — Add extension contracts and custom filter component registry with hook-capable declarations.
+- [x] 04-02-PLAN.md — Implement adapter-based theme rendering and template override structure in admin integration.
+- [x] 04-03-PLAN.md — Publish copyable extension/theme docs with executable example verification.
 **UI hint**: yes
 
 ## Progress Table
@@ -76,8 +81,8 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Declarative Filter API Foundation | 1/1 | Complete    | 2026-04-20 |
 | 2. Core Built-in Filters & Changelist UX | 3/3 | Complete    | 2026-04-20 |
-| 3. Async Autocomplete & Scale Performance | 0/3 | Not started | - |
-| 4. Theme Adapters, Extension Hooks & Docs | 0/TBD | Not started | - |
+| 3. Async Autocomplete & Scale Performance | 3/3 | Complete    | 2026-04-20 |
+| 4. Theme Adapters, Extension Hooks & Docs | 3/3 | Complete    | 2026-04-20 |
 
 ## Requirement Coverage Map
 

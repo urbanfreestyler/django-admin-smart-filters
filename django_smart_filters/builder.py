@@ -15,9 +15,40 @@ class BuilderFilterDeclaration:
     alias: str | None = None
     query_hook: QueryHook | None = None
     widget_hook: WidgetHook | None = None
+    component_key: str | None = None
 
     def to_spec(self) -> FilterSpec:
         return normalize_builder_declaration(self)
+
+    def with_query_hook(self, query_hook: QueryHook) -> "BuilderFilterDeclaration":
+        return BuilderFilterDeclaration(
+            field_name=self.field_name,
+            filter_kind=self.filter_kind,
+            alias=self.alias,
+            query_hook=query_hook,
+            widget_hook=self.widget_hook,
+            component_key=self.component_key,
+        )
+
+    def with_widget_hook(self, widget_hook: WidgetHook) -> "BuilderFilterDeclaration":
+        return BuilderFilterDeclaration(
+            field_name=self.field_name,
+            filter_kind=self.filter_kind,
+            alias=self.alias,
+            query_hook=self.query_hook,
+            widget_hook=widget_hook,
+            component_key=self.component_key,
+        )
+
+    def with_component(self, component_key: str) -> "BuilderFilterDeclaration":
+        return BuilderFilterDeclaration(
+            field_name=self.field_name,
+            filter_kind=self.filter_kind,
+            alias=self.alias,
+            query_hook=self.query_hook,
+            widget_hook=self.widget_hook,
+            component_key=component_key,
+        )
 
 
 @dataclass(frozen=True)
