@@ -73,9 +73,30 @@ class SmartFilterAdminMixin:
                     "kind": spec.filter_kind,
                     "param_name": spec.param_name,
                     "value": value,
+                    "options": self._control_options(spec.filter_kind, value),
                 }
             )
         return controls
+    
+    def _control_options(self, filter_kind: str, value: Any) -> list[dict[str, str]]:
+        if filter_kind == "boolean_toggle":
+            return [
+                {"value": "true", "label": "Yes"},
+                {"value": "false", "label": "No"},
+            ]
+
+        if filter_kind == "multi_select":
+            if not isinstance(value, list):
+                return []
+            return [{"value": str(item), "label": str(item)} for item in value]
+
+        if filter_kind == "dropdown":
+            if value is None:
+                return []
+            text = str(value)
+            return [{"value": text, "label": text}]
+
+        return []
 
 
 __all__ = ["SmartFilterAdminMixin"]

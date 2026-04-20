@@ -5,20 +5,21 @@
       <label class="django-smart-filters-control__label" for="smart-filter-{{ control.param_name|escape }}">{{ control.label }}</label>
 
       {% if control.kind == "dropdown" %}
-        <input
-          id="smart-filter-{{ control.param_name|escape }}"
-          name="{{ control.param_name|escape }}"
-          type="text"
-          value="{{ control.value|default_if_none:'' }}"
-        />
+        <select id="smart-filter-{{ control.param_name|escape }}" name="{{ control.param_name|escape }}">
+          <option value="">{% translate "Any" %}</option>
+          {% for option in control.options %}
+            <option value="{{ option.value|escape }}" {% if option.value == control.value %}selected{% endif %}>
+              {{ option.label }}
+            </option>
+          {% endfor %}
+        </select>
 
       {% elif control.kind == "multi_select" %}
-        <input
-          id="smart-filter-{{ control.param_name|escape }}"
-          name="{{ control.param_name|escape }}"
-          type="text"
-          value="{{ control.value|join:', '|default_if_none:'' }}"
-        />
+        <select id="smart-filter-{{ control.param_name|escape }}" name="{{ control.param_name|escape }}" multiple>
+          {% for option in control.options %}
+            <option value="{{ option.value|escape }}" selected>{{ option.label }}</option>
+          {% endfor %}
+        </select>
 
       {% elif control.kind == "date_range" %}
         <input
