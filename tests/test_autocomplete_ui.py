@@ -10,9 +10,8 @@ from django.db import models
 from django.template.loader import render_to_string
 from django.test import RequestFactory
 
-from django_smart_filters.admin import SmartFilterAdminMixin
-from django_smart_filters.builder import Filter
-
+from django_admin_smart_filters.admin import SmartFilterAdminMixin
+from django_admin_smart_filters.builder import Filter
 
 if not settings.configured:
     settings.configure(
@@ -24,7 +23,9 @@ if not settings.configured:
             "django.contrib.contenttypes",
             "django.contrib.sessions",
         ],
-        DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}},
+        DATABASES={
+            "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}
+        },
         MIDDLEWARE=[],
         ROOT_URLCONF=__name__,
         TEMPLATES=[
@@ -32,7 +33,11 @@ if not settings.configured:
                 "BACKEND": "django.template.backends.django.DjangoTemplates",
                 "APP_DIRS": True,
                 "DIRS": [
-                    str(Path(__file__).resolve().parents[1] / "django_smart_filters" / "templates")
+                    str(
+                        Path(__file__).resolve().parents[1]
+                        / "django_admin_smart_filters"
+                        / "templates"
+                    )
                 ],
             }
         ],
@@ -84,7 +89,9 @@ def test_autocomplete_control_is_lazy_loaded() -> None:
     request = RequestFactory().get("/admin/tests/uiadmintestmodel/")
 
     context = admin_instance.changelist_view(request)
-    control = next(item for item in context["filter_controls"] if item["kind"] == "autocomplete")
+    control = next(
+        item for item in context["filter_controls"] if item["kind"] == "autocomplete"
+    )
 
     assert control["endpoint_url"].endswith("/smart-filters/autocomplete/")
     assert control["page_size"] == 20
@@ -92,9 +99,11 @@ def test_autocomplete_control_is_lazy_loaded() -> None:
     assert control["options"] == []
 
 
-def test_autocomplete_control_template_contains_metadata_without_preloaded_options() -> None:
+def test_autocomplete_control_template_contains_metadata_without_preloaded_options() -> (
+    None
+):
     html = render_to_string(
-        "admin/django_smart_filters/autocomplete_control.html",
+        "admin/django_admin_smart_filters/autocomplete_control.html",
         {
             "control": {
                 "field_name": "category",
@@ -108,13 +117,22 @@ def test_autocomplete_control_template_contains_metadata_without_preloaded_optio
         },
     )
 
-    assert "data-autocomplete-url=\"/admin/tests/uiadmintestmodel/smart-filters/autocomplete/\"" in html
-    assert "data-page-size=\"20\"" in html
+    assert (
+        'data-autocomplete-url="/admin/tests/uiadmintestmodel/smart-filters/autocomplete/"'
+        in html
+    )
+    assert 'data-page-size="20"' in html
     assert "<option" not in html
 
 
 def test_autocomplete_control_js_defines_debounce_and_stale_guard() -> None:
-    js = (Path(__file__).resolve().parents[1] / "django_smart_filters" / "static" / "django_smart_filters" / "autocomplete.js").read_text()
+    js = (
+        Path(__file__).resolve().parents[1]
+        / "django_admin_smart_filters"
+        / "static"
+        / "django_admin_smart_filters"
+        / "autocomplete.js"
+    ).read_text()
 
     assert "const DEBOUNCE_MS = 250" in js
     assert "function createDebouncer" in js
@@ -123,15 +141,27 @@ def test_autocomplete_control_js_defines_debounce_and_stale_guard() -> None:
 
 
 def test_stale_response_is_ignored() -> None:
-    js = (Path(__file__).resolve().parents[1] / "django_smart_filters" / "static" / "django_smart_filters" / "autocomplete.js").read_text()
+    js = (
+        Path(__file__).resolve().parents[1]
+        / "django_admin_smart_filters"
+        / "static"
+        / "django_admin_smart_filters"
+        / "autocomplete.js"
+    ).read_text()
 
     assert "if (!staleGuard.isCurrent(token))" in js
     assert "return { stale: true }" in js
 
 
 def test_autocomplete_js_fetches_paginated_results_and_supports_load_more() -> None:
-    js = (Path(__file__).resolve().parents[1] / "django_smart_filters" / "static" / "django_smart_filters" / "autocomplete.js").read_text()
+    js = (
+        Path(__file__).resolve().parents[1]
+        / "django_admin_smart_filters"
+        / "static"
+        / "django_admin_smart_filters"
+        / "autocomplete.js"
+    ).read_text()
 
-    assert "params.set(\"page\", String(page))" in js
-    assert "params.set(\"limit\", String(pageSize))" in js
+    assert 'params.set("page", String(page))' in js
+    assert 'params.set("limit", String(pageSize))' in js
     assert "requestPage(currentQuery, currentPage + 1, true)" in js

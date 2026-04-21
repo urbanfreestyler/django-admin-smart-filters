@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from django_smart_filters.builder import Filter
-from django_smart_filters.contracts import FilterSpec
-from django_smart_filters.query import apply_filter_state, apply_filter_value
+from django_admin_smart_filters.builder import Filter
+from django_admin_smart_filters.contracts import FilterSpec
+from django_admin_smart_filters.query import apply_filter_state, apply_filter_value
 
 
 class RecordingQuerySet:
@@ -48,7 +48,9 @@ def test_date_and_numeric_ranges_apply_only_present_bounds() -> None:
     date_spec = Filter.field("created").date_range().to_spec()
     numeric_spec = Filter.field("score").numeric_range().to_spec()
 
-    updated = apply_filter_value(queryset, date_spec, {"start": "2026-01-01", "end": None})
+    updated = apply_filter_value(
+        queryset, date_spec, {"start": "2026-01-01", "end": None}
+    )
     updated = apply_filter_value(updated, numeric_spec, {"min": None, "max": 20})
 
     assert updated.calls == [{"created__gte": "2026-01-01"}, {"score__lte": 20.0}]
@@ -65,7 +67,9 @@ def test_date_and_numeric_ranges_apply_only_present_bounds() -> None:
         ("0", False),
     ],
 )
-def test_boolean_toggle_maps_true_false_consistently(raw: object, expected: bool) -> None:
+def test_boolean_toggle_maps_true_false_consistently(
+    raw: object, expected: bool
+) -> None:
     queryset = RecordingQuerySet()
     spec = Filter.field("active").boolean_toggle().to_spec()
 
@@ -101,7 +105,9 @@ def test_mixed_filter_state_composes_deterministically() -> None:
 def test_query_hook_runs_after_base_normalization() -> None:
     observed: dict[str, object] = {}
 
-    def query_hook(queryset: RecordingQuerySet, value: object, spec: FilterSpec) -> RecordingQuerySet:
+    def query_hook(
+        queryset: RecordingQuerySet, value: object, spec: FilterSpec
+    ) -> RecordingQuerySet:
         observed["value"] = value
         observed["calls_before_hook"] = list(queryset.calls)
         observed["field"] = spec.field_name

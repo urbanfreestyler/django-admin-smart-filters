@@ -1,147 +1,138 @@
 # Feature Research
 
-**Domain:** Django admin filtering framework (library)
-**Researched:** 2026-04-20
-**Confidence:** MEDIUM
+**Domain:** Python package release-readiness milestone (existing Django admin library)
+**Researched:** 2026-04-21
+**Confidence:** HIGH
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these = product feels incomplete.
+Features maintainers and early adopters expect before a first public PyPI release.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Declarative `list_filter`-compatible API | Django admin users expect drop-in integration without replacing admin architecture | LOW | Must support `SimpleListFilter`/`FieldListFilter` patterns and standard querystring behavior. |
-| Async autocomplete filter for FK/M2M | Official Django admin already uses async Select2 for `autocomplete_fields`; users expect similar behavior for list filters on large relations | MEDIUM | Must use server-side search endpoint + permissions + `search_fields` integration. |
-| Server-side search + pagination for high-cardinality choices | Large datasets make static option lists unusable; ecosystem packages highlight this as core pain | MEDIUM | Return small pages, include term search, cap page size, avoid loading all choices into memory. |
-| Dropdown/compact filter UI for long choice lists | Widely adopted by dropdown-focused packages because default sidebar becomes unwieldy | LOW | Should work for choices, related fields, and plain values with clear “All” reset. |
-| Date and numeric range filters | Common operational/admin workflow; mature package support indicates baseline demand | MEDIUM | Include presets where possible (today, last 7 days, this month) but keep logic server-side. |
-| Multi-filter coexistence + stable URL state | Admin users share links and expect back/forward browser behavior | LOW | Preserve selected filters in query params; ensure filters compose predictably. |
-| Permission-safe filtering | Official admin docs emphasize object permissions around autocomplete/search data | MEDIUM | Never leak unavailable related objects in suggestions or counts. |
+| Complete `pyproject.toml` metadata (name/version/description/readme/license/requires-python/dependencies/URLs/classifiers) | PyPI package pages and installers depend on valid metadata; missing metadata makes package look incomplete or fail policy checks | MEDIUM | Align distribution name with import package rename (`django_admin_smart_filters`) and ensure metadata fields are PEP 621/core-metadata compliant. |
+| Build both `sdist` and wheel (`python -m build`) | PyPA guidance expects both archives for normal releases; users expect fast wheel installs with sdist fallback | LOW | Must verify both artifacts are generated on clean environment. |
+| Artifact validation gates (`twine check`, install/import smoke test) | First release failures are often metadata/README/rendering/import-path mistakes | LOW | `twine check` validates long description; smoke test should install built wheel and import public package entrypoints. |
+| Reproducible quality gate (tests + lint + typing in CI) | Consumers expect baseline stability from v1 packages, not “works on maintainer machine” releases | MEDIUM | Gate on existing project checks: pytest, ruff, mypy/django-stubs (if enabled in stack). |
+| TestPyPI dry run before production publish | Standard safe first-release workflow to catch upload/auth/index issues without polluting real PyPI | LOW | Upload to TestPyPI, then verify install from TestPyPI index. |
+| Secure publishing path (Trusted Publishing or scoped API token) | PyPI ecosystem now treats token hygiene as baseline release practice | MEDIUM | Prefer Trusted Publishing (OIDC short-lived creds) over long-lived secrets in CI. |
+| Release docs bundle (install/quickstart/changelog/release notes) | First-time adopters need immediate “can I install and use this?” confidence | MEDIUM | Changelog + “what’s stable in v1.1” should reflect release-readiness scope (no net-new filter features). |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set the product apart. Not required, but valuable.
+Release features that go beyond minimum “can upload package” behavior.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Theme adapter layer (default admin + custom themes) | Most libraries focus on default admin only; adapter abstraction enables broad adoption | HIGH | Keep filter logic backend-first; render via adapter templates/components per theme. |
-| Unified filter builders (dropdown/autocomplete/range) with one API style | Reduces cognitive overhead vs mixing unrelated third-party filter styles | MEDIUM | Example: `Filter.dropdown(...)`, `Filter.autocomplete(...)`, `Filter.range(...)`. |
-| Performance guardrails built in | Prevents common production regressions on big tables | HIGH | Add safe defaults: debounced requests, query limits, optional `select_related` hints, timeout/error UX. |
-| Extension SDK for custom filter types | Moves library from “set of widgets” to “platform” | MEDIUM | Publish stable hooks: queryset transformation, option provider, template slot, JS behavior hook. |
-| Facet/count integration with budget controls | Gives users context (“how many”) while controlling query explosion | HIGH | Integrate with Django facets model; allow OFF/ON/ALWAYS per filter with thresholds. |
-| Saved filter presets (team-level, optional) | Frequent admin workflows become one-click operations | MEDIUM | Keep optional and conservative; save querystring presets, not arbitrary unsafe query DSL by default. |
+| Automated tag-driven release workflow (build once, publish artifacts) | Eliminates manual release drift and makes releases repeatable/auditable | MEDIUM | GitHub Actions pattern: build job -> artifact store -> publish jobs. |
+| Trusted Publishing + environment approvals | Strong security posture for OSS package consumers and maintainers | MEDIUM | PyPI OIDC tokens are short-lived; add manual approval on production `pypi` environment. |
+| Release readiness checklist command/doc in repo | Reduces maintainer cognitive load and onboarding friction | LOW | One command path for local “preflight”: clean build, checks, smoke test, TestPyPI upload. |
+| Post-upload verification script (fresh venv install + example import) | Quickly detects broken distribution metadata/import path after publish | LOW | Especially useful during package namespace rename transition. |
+| Compatibility badge matrix (Python/Django support) in README | Improves trust and discoverability for Django teams evaluating package fit | LOW | Should match tested matrix from CI, not aspirational claims. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that seem good but create problems.
+Scope that looks useful but usually harms first-release success.
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Full React/Vue rewrite of admin filtering | “Modern UX” appeal | Breaks Django admin upgrade path, raises integration/support cost, conflicts with project scope | Keep progressive enhancement JS + server-rendered templates + adapter layer |
-| “One mega filter builder” with arbitrary nested boolean logic in MVP | Power-user flexibility | High complexity, hard-to-debug queries, permission/performance risk | Ship composable simple filters first; defer advanced query language as optional integration |
-| Client-side preload of all filter choices | Feels fast on tiny datasets | Collapses on high-cardinality data; memory/network spikes | Strict server-side search/pagination |
-| Auto-generate rich filters for every model field | Fast setup demo | Produces noisy/slow UI and poor relevance | Explicit, declarative filter selection with sane defaults |
-| Deep coupling to one admin skin | Faster first release | Vendor lock-in and fragile CSS/DOM assumptions | Adapter contracts + per-theme templates |
+| Shipping net-new filter capabilities in release-readiness milestone | “Make launch bigger/more exciting” | Mixes product work with packaging risk; delays release and complicates regression triage | Freeze feature surface; ship reliability/packaging milestone only |
+| Custom release CLI/orchestration framework | “One tool to do everything” | Over-engineering for first release; adds maintenance burden before proving need | Use standard PyPA tools (`build`, `twine`) + lightweight scripts |
+| Long-lived PyPI tokens in repo secrets as default | Quick setup convenience | Higher compromise blast radius than OIDC trusted publishing | Prefer Trusted Publishing; fallback to scoped tokens only if needed |
+| Multi-index publish complexity on day one (mirrors/private registries/extra repos) | “Future-proofing” | Adds failure modes unrelated to initial public release goal | Start with TestPyPI + PyPI only, then expand |
+| “Auto-fix metadata” at release time | Reduce manual edits | Hidden mutation during release makes provenance harder and can ship unexpected metadata | Keep metadata explicit in VCS; release pipeline verifies, not rewrites |
 
 ## Feature Dependencies
 
 ```text
-Declarative API
-    └──requires──> list_filter-compatible backend contracts
+Existing stable library behavior (v1.0 phases complete)
+    └──requires──> release-readiness scope freeze
 
-Autocomplete filter
-    └──requires──> server-side search endpoint
-                        └──requires──> permission-safe queryset + pagination
+Package namespace rename finalization (`django_admin_smart_filters`)
+    └──requires──> metadata + import-path alignment
+                        └──requires──> install/import smoke tests
 
-Range filters (date/number)
-    └──enhances──> table-stakes filtering completeness
+Build artifacts (`sdist` + wheel)
+    └──requires──> valid `pyproject.toml`
+                        └──requires──> `twine check` + TestPyPI upload
 
-Theme adapter layer
-    └──requires──> backend/frontend separation
+Production publish
+    └──requires──> CI quality gates passing
+    └──requires──> secure auth path (Trusted Publishing preferred)
 
-Saved presets
-    └──requires──> stable URL/querystring state
-
-Facet/count integration
-    └──requires──> query-budget controls
-
-Arbitrary query language
-    └──conflicts──> MVP simplicity/performance goals
+Release documentation
+    └──requires──> final package name/version + validated install commands
 ```
 
 ### Dependency Notes
 
-- **Autocomplete requires server-side search endpoint:** Without endpoint + pagination, high-cardinality fields regress to unusable dropdowns.
-- **Server-side search requires permission-safe queryset:** Suggestion leaks are a hard blocker in admin contexts.
-- **Theme adapter requires backend/frontend separation:** If filter logic is template-bound, multi-theme support becomes brittle.
-- **Saved presets require stable querystring contract:** Presets should serialize existing URL filters, not invent a second state model.
-- **Facet counts require budget controls:** Count queries scale with filter count and can degrade changelist performance.
+- **Scope freeze before packaging:** if feature work continues during release hardening, failures become hard to attribute.
+- **Rename alignment is critical:** distribution name, import package, docs examples, and smoke tests must all agree.
+- **CI gates precede publishing:** publishing without deterministic tests/lint/type checks turns PyPI into test environment.
+- **TestPyPI precedes PyPI:** catches auth and metadata rendering issues with low risk.
+- **Docs depend on tested commands:** installation snippets must be copied from verified flows, not assumptions.
 
 ## MVP Definition
 
-### Launch With (v1)
+### Launch With (v1.1 release-readiness milestone)
 
-Minimum viable product — what's needed to validate the concept.
-
-- [ ] Declarative, `list_filter`-compatible API — core adoption path for Django teams.
-- [ ] Dropdown filter + async autocomplete filter — covers low and high cardinality primary use cases.
-- [ ] Server-side search/pagination + permission-safe option loading — required for scale and safety.
-- [ ] Date/numeric range filters — high-frequency admin workflow support.
-- [ ] Default Django admin renderer + adapter contract (at least one extension example) — validates theme-agnostic direction.
+- [ ] Finalized `pyproject.toml` metadata and version baseline — essential for valid distribution identity.
+- [ ] Deterministic build of `sdist` + wheel — required for distribution delivery.
+- [ ] `twine check` + clean-venv install/import smoke test — essential release safety net.
+- [ ] CI gate for tests/lint/type checks — baseline quality contract for first public package.
+- [ ] TestPyPI rehearsal + production publishing path docs — de-risk first PyPI publish.
+- [ ] Release notes/changelog/install docs updated for renamed package namespace — reduce adopter confusion.
 
 ### Add After Validation (v1.x)
 
-Features to add once core is working.
-
-- [ ] Facet/count toggles with performance thresholds — add once real workload profiles are observed.
-- [ ] Filter preset save/share — add after teams validate repeated filter workflows.
-- [ ] Extension SDK hardening (typed hooks, compatibility policy) — add once first external extensions appear.
+- [ ] Fully automated tag->publish workflow with environment approvals — add after first manual/semimanual release succeeds.
+- [ ] Signed provenance/attestation enhancements beyond defaults — add once baseline release pipeline is stable.
+- [ ] Automated release-note generation from conventional commits/labels — optimize once cadence increases.
 
 ### Future Consideration (v2+)
 
-Features to defer until product-market fit is established.
-
-- [ ] Optional advanced query language integration (e.g., DjangoQL-style mode) — powerful, but not core MVP.
-- [ ] Cross-model compound filter workflows — defer due to complexity and authorization edge cases.
+- [ ] Multi-registry publication strategy (private mirrors/internal index) — only after clear enterprise demand.
+- [ ] Advanced supply-chain hardening expansions (beyond Trusted Publishing defaults) — phase in with maintainer capacity.
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Declarative API + list_filter compatibility | HIGH | LOW | P1 |
-| Async autocomplete + server-side search/pagination | HIGH | MEDIUM | P1 |
-| Date/numeric range filters | HIGH | MEDIUM | P1 |
-| Theme adapter contract + default renderer | HIGH | MEDIUM | P1 |
-| Facet/count controls | MEDIUM | HIGH | P2 |
-| Saved filter presets | MEDIUM | MEDIUM | P2 |
-| Advanced query language mode | MEDIUM | HIGH | P3 |
+| Valid package metadata (`pyproject.toml`) | HIGH | MEDIUM | P1 |
+| Build + artifact validation (`sdist`/wheel + `twine check`) | HIGH | LOW | P1 |
+| CI quality gates for release | HIGH | MEDIUM | P1 |
+| TestPyPI rehearsal + smoke install | HIGH | LOW | P1 |
+| Secure publish auth (Trusted Publishing) | HIGH | MEDIUM | P1 |
+| Automated tag-driven publish workflow | MEDIUM | MEDIUM | P2 |
+| Release checklist automation | MEDIUM | LOW | P2 |
+| Multi-index publishing support | LOW | HIGH | P3 |
 
 **Priority key:**
 - P1: Must have for launch
 - P2: Should have, add when possible
 - P3: Nice to have, future consideration
 
-## Competitor Feature Analysis
+## Competitor/Standard Practice Analysis
 
-| Feature | Competitor A | Competitor B | Our Approach |
-|---------|--------------|--------------|--------------|
-| Dropdown filters | `django-admin-list-filter-dropdown` (simple, stable concept, but stale releases) | `django-more-admin-filters` (dropdown + multiselect variants, actively maintained) | First-class dropdown in unified API, modern Django compatibility focus |
-| Autocomplete list filters | `django-admin-autocomplete-filter` (focused package, older release cadence) | `django-adminfilters` (broad filter catalog incl. autocomplete) | Make autocomplete a core table-stakes path, with explicit performance + permission guarantees |
-| Range filters | `django-admin-rangefilter` (popular and active) | `django-adminfilters` (number/date variants) | Native range builders integrated with same API surface as dropdown/autocomplete |
-| Advanced filtering/query DSL | `djangoql` (powerful search language) | `django-adminfilters` (lookup/querystring filters) | Keep optional/integrated later; avoid making complex DSL mandatory for MVP |
+| Release Practice | Typical Ecosystem Baseline | Our Approach |
+|------------------|----------------------------|--------------|
+| Metadata declaration | PEP 621 `pyproject.toml` with complete project metadata | Enforce complete static metadata, aligned with rename and Django support policy |
+| Build/publish tooling | `python -m build` + `twine`/PyPI publish action | Keep standard PyPA toolchain; avoid custom release framework |
+| Pre-production validation | TestPyPI upload + install verification | Mandatory rehearsal before first real PyPI release |
+| CI publishing auth | Trusted Publishing increasingly recommended | Prefer OIDC trusted publishing with approvals for production release |
 
 ## Sources
 
-- Django official docs — `ModelAdmin` list filters, autocomplete, facets, and performance notes (HIGH): https://docs.djangoproject.com/en/6.0/ref/contrib/admin/ and https://docs.djangoproject.com/en/6.0/ref/contrib/admin/filters/
-- `django-admin-rangefilter` repository + release recency (MEDIUM): https://github.com/silentsokolov/django-admin-rangefilter
-- `django-admin-autocomplete-filter` repository (MEDIUM): https://github.com/farhan0581/django-admin-autocomplete-filter
-- `django-more-admin-filters` repository + Django 6.0 support claim (MEDIUM): https://github.com/thomst/django-more-admin-filters
-- `django-adminfilters` repository + PyPI metadata/release history (MEDIUM): https://github.com/saxix/django-adminfilters and https://pypi.org/project/django-adminfilters/
-- `django-admin-list-filter-dropdown` repository (LOW-MEDIUM; older activity, still useful as UX signal): https://github.com/mrts/django-admin-list-filter-dropdown
-- `djangoql` repository (MEDIUM): https://github.com/ivelum/djangoql
+- PyPA tutorial: packaging projects (build artifacts, upload/test flow) (HIGH): https://packaging.python.org/en/latest/tutorials/packaging-projects/
+- PyPA guide: writing `pyproject.toml` / PEP 621 metadata fields (HIGH): https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
+- PyPA guide: using TestPyPI (HIGH): https://packaging.python.org/en/latest/guides/using-testpypi/
+- PyPA guide: publishing with GitHub Actions + trusted publishing workflow (HIGH): https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
+- PyPI docs: trusted publishers / OIDC security model (HIGH): https://docs.pypi.org/trusted-publishers/
+- Twine docs (`twine check`, upload behavior, security rationale) (HIGH): https://twine.readthedocs.io/en/stable/
+- PyPA core metadata specification (v2.5, Sept 2025) (HIGH): https://packaging.python.org/en/latest/specifications/core-metadata/
 
 ---
-*Feature research for: Django admin filtering framework*
-*Researched: 2026-04-20*
+*Feature research for: first package release readiness milestone*
+*Researched: 2026-04-21*

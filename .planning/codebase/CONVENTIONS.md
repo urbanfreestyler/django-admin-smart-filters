@@ -1,96 +1,96 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-04-20
+**Analysis Date:** 2026-04-21
 
 ## Naming Patterns
 
 **Files:**
-- Use `snake_case.py` module names for library code and tests, for example `django_smart_filters/query.py`, `django_smart_filters/validation.py`, and `tests/test_autocomplete_admin_endpoint.py`.
+- Use `snake_case.py` for Python modules in `django_smart_filters/` and tests in `tests/` (examples: `django_smart_filters/validation.py`, `tests/test_admin_filters.py`).
+- Use `snake_case.html` for Django templates in `django_smart_filters/templates/admin/django_smart_filters/` (examples: `autocomplete_control.html`, `active_filters_bar.html`).
+- Use `snake_case.js` for static JavaScript assets in `django_smart_filters/static/django_smart_filters/` (example: `autocomplete.js`).
 
 **Functions:**
-- Use `snake_case` for functions and methods, including private helpers prefixed with `_`, for example `apply_filter_state` in `django_smart_filters/query.py`, `_parse_numeric_range` in `django_smart_filters/state.py`, and `_autocomplete_endpoint_url` in `django_smart_filters/admin.py`.
+- Use `snake_case` for public and internal Python functions (examples: `parse_filter_state` in `django_smart_filters/state.py`, `_normalize_numeric_range` in `django_smart_filters/query.py`).
+- Use `_leading_underscore` for module-private helpers (examples: `_parse_spec_value` in `django_smart_filters/state.py`, `_validate_param_collisions` in `django_smart_filters/declarations.py`).
+- Use descriptive action-first names for behaviors (examples: `apply_filter_state`, `register_filter_component`, `resolve_theme_adapter`).
 
 **Variables:**
-- Use `snake_case` locals and parameters (`field_selector`, `normalized_specs`, `expected_calls`) across `django_smart_filters/admin.py` and `tests/test_admin_filters.py`.
-- Use `UPPER_CASE` for module constants, such as `MIN_AUTOCOMPLETE_QUERY_LENGTH` in `django_smart_filters/autocomplete.py` and `SUPPORTED_FILTER_KINDS` in `django_smart_filters/validation.py`.
+- Use `snake_case` for local variables and constants in Python (examples: `field_selector`, `target_spec` in `django_smart_filters/admin.py`).
+- Use `UPPER_SNAKE_CASE` for module constants (examples: `MIN_AUTOCOMPLETE_QUERY_LENGTH` in `django_smart_filters/autocomplete.py`, `SUPPORTED_FILTER_KINDS` in `django_smart_filters/validation.py`).
 
 **Types:**
-- Use PascalCase for classes and dataclasses, for example `FilterSpec` in `django_smart_filters/contracts.py`, `AutocompleteRequest` in `django_smart_filters/autocomplete.py`, and `ClassFilterDeclaration` in `django_smart_filters/declarations.py`.
-- Use Protocol contracts for callable hooks (`QueryHook`, `WidgetHook`) in `django_smart_filters/contracts.py`.
+- Use PascalCase for classes and dataclasses (examples: `FilterSpec` in `django_smart_filters/contracts.py`, `ThemeAdapter` in `django_smart_filters/theme.py`).
+- Use Protocol types for extension hooks (examples: `QueryHook`, `WidgetHook` in `django_smart_filters/contracts.py`).
 
 ## Code Style
 
 **Formatting:**
-- Tool used: Not detected (no formatter config file found at repository root; `pyproject.toml`, `ruff.toml`, `setup.cfg`, and `.editorconfig` are not present).
-- Apply the existing style observed in source files under `django_smart_filters/` and `tests/`:
-  - Type annotations on public functions and many internals (for example `parse_filter_state` in `django_smart_filters/state.py`).
-  - Double-quoted strings and concise module docstrings (`django_smart_filters/query.py`, `django_smart_filters/chips.py`).
-  - Blank-line grouped imports and line wrapping style consistent with Black-compatible formatting (`django_smart_filters/admin.py`, `tests/test_autocomplete_admin_endpoint.py`).
+- Tool used: Not detected in repository config files (`pyproject.toml`, `setup.cfg`, `tox.ini`, `pytest.ini` not present).
+- Apply existing in-code style from `django_smart_filters/*.py`: typed signatures, explicit return annotations in tests and core modules, and short module-level docstrings.
+- Use `from __future__ import annotations` in Python modules and tests (examples: `django_smart_filters/admin.py`, `tests/test_query.py`).
 
 **Linting:**
-- Tool used: Not detected (no lint config such as `.ruff.toml`, `pyproject.toml`, `.flake8`, or `pylintrc` found).
-- Enforce type-friendly patterns already present in code:
-  - Narrow exception types (`except (TypeError, ValueError) as exc`) in `django_smart_filters/query.py` and `django_smart_filters/state.py`.
-  - Explicit `__all__` module exports in `django_smart_filters/__init__.py`, `django_smart_filters/query.py`, `django_smart_filters/state.py`, and `django_smart_filters/autocomplete.py`.
+- Tool used: Not detected in repository config files.
+- Follow strict typing and clear branch structure already used across `django_smart_filters/` modules.
+- Raise actionable exceptions with user-facing messages in validation paths (examples in `django_smart_filters/validation.py`, `django_smart_filters/autocomplete.py`).
 
 ## Import Organization
 
 **Order:**
-1. Future imports (`from __future__ import annotations`) in modules like `django_smart_filters/query.py` and `django_smart_filters/admin.py`.
-2. Standard library imports (`dataclasses`, `typing`, `collections.abc`, `datetime`) as seen in `django_smart_filters/contracts.py` and `django_smart_filters/autocomplete.py`.
-3. Django and third-party imports (`django.http`, `django.template.loader`, `pytest`) in `django_smart_filters/admin.py` and `tests/test_query.py`.
-4. Local package imports (`from django_smart_filters...`) in all package modules and tests.
+1. `__future__` imports first (example: `django_smart_filters/query.py`).
+2. Standard library imports next (`collections.abc`, `datetime`, `typing` in `django_smart_filters/query.py`).
+3. Django imports next when needed (`django.http` in `django_smart_filters/state.py`).
+4. Local package imports last (`django_smart_filters.contracts`, `django_smart_filters.validation`).
 
 **Path Aliases:**
-- Not used. Imports use explicit absolute package paths like `from django_smart_filters.state import parse_filter_state` in `django_smart_filters/admin.py`.
+- Not used. Import with explicit package paths such as `from django_smart_filters.builder import Filter` in `tests/test_declarations.py`.
 
 ## Error Handling
 
 **Patterns:**
-- Raise explicit validation exceptions with actionable messages:
-  - `FilterValidationError` for contract/declaration failures in `django_smart_filters/validation.py` and `django_smart_filters/declarations.py`.
-  - `ValueError` for invalid runtime input parsing in `django_smart_filters/query.py`, `django_smart_filters/state.py`, and `django_smart_filters/autocomplete.py`.
-- Preserve exception causes using `raise ... from exc` when converting parse errors (`django_smart_filters/query.py`, `django_smart_filters/state.py`, `django_smart_filters/autocomplete.py`).
-- In HTTP boundary code, convert parsing errors into structured 400 responses instead of uncaught exceptions (`smart_filter_autocomplete_view` in `django_smart_filters/admin.py`).
+- Validate early and fail fast (`validate_filter_spec(spec)` at entry points in `django_smart_filters/query.py` and `django_smart_filters/state.py`).
+- Raise `ValueError`/`FilterValidationError` with deterministic messages for invalid user inputs (examples: `_parse_positive_int` in `django_smart_filters/autocomplete.py`, `validate_filter_spec` in `django_smart_filters/validation.py`).
+- Convert internal exceptions to HTTP 400 JSON responses at admin boundaries (example: `smart_filter_autocomplete_view` in `django_smart_filters/admin.py`).
 
 ## Logging
 
-**Framework:** console
+**Framework:** console (none detected in codebase)
 
 **Patterns:**
-- No active logging calls are present in `django_smart_filters/*.py` or `tests/*.py`.
-- Use deterministic return values and explicit errors rather than log-driven control flow, following patterns in `django_smart_filters/query.py` and `django_smart_filters/state.py`.
+- No logging calls detected in `django_smart_filters/*.py`.
+- For new code, preserve current convention: return deterministic errors instead of adding ad-hoc logging.
 
 ## Comments
 
 **When to Comment:**
-- Keep comments sparse; prefer clear naming and small functions.
-- Use short intent comments only where context is non-obvious, as in `tests/test_autocomplete_admin_endpoint.py` (the status-scoping expectation comment) and `tests/test_autocomplete.py` (server-side flow assertions).
+- Prefer docstrings over inline comments for module/class/function intent (examples across `django_smart_filters/contracts.py`, `django_smart_filters/chips.py`).
+- Use inline comments in tests only to clarify scenario intent (example line comment in `tests/test_autocomplete_admin_endpoint.py`).
 
 **JSDoc/TSDoc:**
 - Not applicable for Python modules.
-- Use Python docstrings on modules/classes/functions for API intent, for example `django_smart_filters/admin.py`, `django_smart_filters/contracts.py`, and `django_smart_filters/autocomplete.py`.
+- JavaScript file `django_smart_filters/static/django_smart_filters/autocomplete.js` uses no JSDoc; keep functions self-descriptive with clear naming.
 
 ## Function Design
 
 **Size:**
-- Keep public orchestration functions compact and delegate to private helpers, following `parse_filter_state` + `_parse_*` helpers in `django_smart_filters/state.py` and `apply_filter_value` + `_normalize_*` helpers in `django_smart_filters/query.py`.
+- Keep orchestration in top-level functions/methods and move detailed parsing/normalization to helpers (pattern in `django_smart_filters/state.py` and `django_smart_filters/query.py`).
 
 **Parameters:**
-- Use explicit typed parameters and keyword-only arguments where option clarity matters, for example `resolve_param_name(..., *, alias: str | None = None, multivalue: bool = False)` in `django_smart_filters/params.py` and `parse_autocomplete_request(..., *, state: Mapping[str, Any] | None = None)` in `django_smart_filters/autocomplete.py`.
+- Prefer typed, explicit parameters and keyword-only args for optional context (example: `parse_autocomplete_request(..., *, state=None)` in `django_smart_filters/autocomplete.py`).
+- Use `Mapping`/`Iterable` abstractions for input collections (examples in `django_smart_filters/chips.py`, `django_smart_filters/state.py`).
 
 **Return Values:**
-- Return normalized, deterministic structures (`dict[str, Any]`, `QueryDict`, dataclasses) rather than mixed shapes, as in `django_smart_filters/state.py`, `django_smart_filters/chips.py`, and `django_smart_filters/autocomplete.py`.
-- Use `None` to represent “no usable filter input” during normalization paths (`_normalize_single_value`, `_normalize_multi_select` in `django_smart_filters/query.py`).
+- Return normalized domain values (dict/list/bool/None) for parser helpers (examples: `_parse_numeric_range` in `django_smart_filters/state.py`).
+- Return immutable dataclasses for structured responses where shape matters (examples: `AutocompleteRequest`, `AutocompleteResultPage` in `django_smart_filters/autocomplete.py`).
 
 ## Module Design
 
 **Exports:**
-- Define stable public symbols via `__all__` where modules expose API surfaces, as in `django_smart_filters/__init__.py`, `django_smart_filters/query.py`, `django_smart_filters/state.py`, `django_smart_filters/chips.py`, and `django_smart_filters/autocomplete.py`.
+- Define explicit `__all__` in public modules to constrain API surface (examples: `django_smart_filters/__init__.py`, `django_smart_filters/autocomplete.py`, `django_smart_filters/registry.py`).
 
 **Barrel Files:**
-- Use a minimal barrel at `django_smart_filters/__init__.py` to expose contracts (`FilterSpec`, `QueryHook`, `WidgetHook`) without re-exporting implementation modules.
+- Use `django_smart_filters/__init__.py` as the package barrel for stable public imports (`FilterSpec`, `register_filter_component`, `resolve_filter_component`).
 
 ---
 
-*Convention analysis: 2026-04-20*
+*Convention analysis: 2026-04-21*

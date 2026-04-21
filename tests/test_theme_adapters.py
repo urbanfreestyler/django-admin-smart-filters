@@ -8,9 +8,8 @@ from django.contrib.admin.sites import AdminSite
 from django.db import models
 from django.test import RequestFactory
 
-from django_smart_filters.builder import Filter
-from django_smart_filters.theme import ThemeAdapter, resolve_theme_adapter
-
+from django_admin_smart_filters.builder import Filter
+from django_admin_smart_filters.theme import ThemeAdapter, resolve_theme_adapter
 
 if not settings.configured:
     settings.configure(
@@ -22,7 +21,9 @@ if not settings.configured:
             "django.contrib.contenttypes",
             "django.contrib.sessions",
         ],
-        DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}},
+        DATABASES={
+            "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}
+        },
         MIDDLEWARE=[],
         ROOT_URLCONF=__name__,
         TEMPLATES=[
@@ -30,7 +31,11 @@ if not settings.configured:
                 "BACKEND": "django.template.backends.django.DjangoTemplates",
                 "APP_DIRS": True,
                 "DIRS": [
-                    str(Path(__file__).resolve().parents[1] / "django_smart_filters" / "templates")
+                    str(
+                        Path(__file__).resolve().parents[1]
+                        / "django_admin_smart_filters"
+                        / "templates"
+                    )
                 ],
             }
         ],
@@ -63,7 +68,7 @@ class CustomThemeAdapter(ThemeAdapter):
 
 
 def _make_admin(*, adapter: ThemeAdapter | None = None):
-    from django_smart_filters.admin import SmartFilterAdminMixin
+    from django_admin_smart_filters.admin import SmartFilterAdminMixin
 
     class TestAdmin(SmartFilterAdminMixin, _BaseSmartAdmin):
         smart_filters = [Filter.field("status").dropdown()]
@@ -77,14 +82,16 @@ def test_default_adapter_resolves_when_none_configured() -> None:
 
     assert resolved.name == "default"
     assert resolved.controls_template.endswith("theme/default/filter_controls.html")
-    assert resolved.active_bar_template.endswith("theme/default/active_filters_bar.html")
+    assert resolved.active_bar_template.endswith(
+        "theme/default/active_filters_bar.html"
+    )
 
 
 def test_custom_adapter_can_define_alternate_template_paths() -> None:
     adapter = CustomThemeAdapter(
         name="acme",
-        controls_template="admin/django_smart_filters/filter_controls.html",
-        active_bar_template="admin/django_smart_filters/active_filters_bar.html",
+        controls_template="admin/django_admin_smart_filters/filter_controls.html",
+        active_bar_template="admin/django_admin_smart_filters/active_filters_bar.html",
     )
 
     resolved = resolve_theme_adapter(adapter)
@@ -96,8 +103,8 @@ def test_custom_adapter_can_define_alternate_template_paths() -> None:
 def test_changelist_context_uses_adapter_selected_templates() -> None:
     adapter = CustomThemeAdapter(
         name="acme",
-        controls_template="admin/django_smart_filters/filter_controls.html",
-        active_bar_template="admin/django_smart_filters/active_filters_bar.html",
+        controls_template="admin/django_admin_smart_filters/filter_controls.html",
+        active_bar_template="admin/django_admin_smart_filters/active_filters_bar.html",
     )
     admin_instance = _make_admin(adapter=adapter)
     request = RequestFactory().get("/admin/tests/themeadminfiltermodel/")

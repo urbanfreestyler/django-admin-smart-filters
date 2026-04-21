@@ -4,10 +4,12 @@ import pytest
 from django.conf import settings
 from django.http import QueryDict
 
-from django_smart_filters.builder import Filter
-from django_smart_filters.declarations import ClassFilterDeclaration, normalize_class_declaration
-from django_smart_filters.state import parse_filter_state, serialize_filter_state
-
+from django_admin_smart_filters.builder import Filter
+from django_admin_smart_filters.declarations import (
+    ClassFilterDeclaration,
+    normalize_class_declaration,
+)
+from django_admin_smart_filters.state import parse_filter_state, serialize_filter_state
 
 if not settings.configured:
     settings.configure(DEFAULT_CHARSET="utf-8")

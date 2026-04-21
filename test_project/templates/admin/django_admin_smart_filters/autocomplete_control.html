@@ -1,0 +1,37 @@
+{% load i18n %}
+<div
+  class="django-smart-filters-autocomplete"
+  data-smart-filter-autocomplete="true"
+  data-autocomplete-url="{{ control.endpoint_url|escape }}"
+  data-autocomplete-field="{{ control.field_name|escape }}"
+  data-min-query-length="{{ control.min_query_length }}"
+  data-page-size="{{ control.page_size }}"
+>
+  <input
+    id="smart-filter-{{ control.param_name|escape }}-search"
+    type="text"
+    autocomplete="off"
+    value=""
+    placeholder="{% translate 'Type to search' %}"
+    class="django-smart-filters-autocomplete__input"
+  />
+  <input
+    id="smart-filter-{{ control.param_name|escape }}"
+    name="{{ control.param_name|escape }}"
+    type="hidden"
+    value="{{ control.value|default_if_none:'' }}"
+    data-role="autocomplete-value"
+  />
+  <div class="django-smart-filters-autocomplete__selected" data-role="selected-label">
+    {{ control.selected_label|default_if_none:'' }}
+  </div>
+  <ul class="django-smart-filters-autocomplete__results" data-role="results"></ul>
+  <button
+    type="button"
+    class="django-smart-filters-autocomplete__more"
+    data-role="load-more"
+    style="display: none;"
+  >
+    {% translate "Load more" %}
+  </button>
+</div>

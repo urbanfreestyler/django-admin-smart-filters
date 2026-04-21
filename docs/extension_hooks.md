@@ -6,20 +6,20 @@ Use extension hooks to register custom filter components and attach query/widget
 
 ```python
 # docs:extension-public-imports
-from django_smart_filters import (
+from django_admin_smart_filters import (
     FilterComponent,
     register_filter_component,
     resolve_filter_component,
 )
-from django_smart_filters.builder import Filter
-from django_smart_filters.declarations import ClassFilterDeclaration
+from django_admin_smart_filters.builder import Filter
+from django_admin_smart_filters.declarations import ClassFilterDeclaration
 ```
 
 ## Register a Custom Component
 
 ```python
 # docs:component-registration
-from django_smart_filters import (
+from django_admin_smart_filters import (
     FilterComponent,
     register_filter_component,
     resolve_filter_component,
@@ -40,7 +40,7 @@ resolved_component = resolve_filter_component("status_badge")
 Class-style declaration:
 
 ```python
-from django_smart_filters.declarations import ClassFilterDeclaration
+from django_admin_smart_filters.declarations import ClassFilterDeclaration
 
 
 def only_open(queryset, value, spec):
@@ -67,7 +67,7 @@ status_filter = ClassFilterDeclaration(
 Fluent declaration:
 
 ```python
-from django_smart_filters.builder import Filter
+from django_admin_smart_filters.builder import Filter
 
 
 status_filter = (

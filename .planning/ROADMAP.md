@@ -43,7 +43,9 @@ This roadmap covers the v1.1 "Release Readiness" milestone, focusing on renaming
   1. `pytest` test suite runs successfully with the new namespace
   2. Codebase passes all `ruff` linting and `mypy` type-checking rules
   3. A continuous integration workflow (e.g., GitHub Actions) automatically runs these checks on push
-**Plans**: TBD
+**Plans**: 2 plans
+- [x] 03-01-PLAN.md — Fix Local Quality Gates
+- [ ] 03-02-PLAN.md — Configure Continuous Integration
 
 ### Phase 4: Release Documentation
 **Goal**: Users can read how to install the package and what is included in the first release.
@@ -59,7 +61,7 @@ This roadmap covers the v1.1 "Release Readiness" milestone, focusing on renaming
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Project Rename & Metadata | 0/0 | Not started | - |
-| 2. Build Artifacts & Verification | 0/0 | Not started | - |
-| 3. Automated Quality Gates | 0/0 | Not started | - |
+| 1. Project Rename & Metadata | 1/1 | Complete | 2026-04-21 |
+| 2. Build Artifacts & Verification | 1/1 | Complete | 2026-04-21 |
+| 3. Automated Quality Gates | 0/2 | Not started | - |
 | 4. Release Documentation | 0/0 | Not started | - |

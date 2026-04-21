@@ -17,14 +17,14 @@ Theme adapters decouple rendering templates from query/state logic so you can su
 # docs:theme-adapter-config
 from django.contrib import admin
 
-from django_smart_filters.admin import SmartFilterAdminMixin
-from django_smart_filters.theme import ThemeAdapter
+from django_admin_smart_filters.admin import SmartFilterAdminMixin
+from django_admin_smart_filters.theme import ThemeAdapter
 
 
 adapter = ThemeAdapter(
     name="acme",
-    controls_template="admin/django_smart_filters/filter_controls.html",
-    active_bar_template="admin/django_smart_filters/active_filters_bar.html",
+    controls_template="admin/django_admin_smart_filters/filter_controls.html",
+    active_bar_template="admin/django_admin_smart_filters/active_filters_bar.html",
 )
 
 
@@ -36,17 +36,17 @@ class ProductAdmin(SmartFilterAdminMixin, admin.ModelAdmin):
 
 Default adapter template paths:
 
-- `admin/django_smart_filters/theme/default/filter_controls.html`
-- `admin/django_smart_filters/theme/default/active_filters_bar.html`
+- `admin/django_admin_smart_filters/theme/default/filter_controls.html`
+- `admin/django_admin_smart_filters/theme/default/active_filters_bar.html`
 
 Filesystem location for package defaults:
 
-- `templates/admin/django_smart_filters/theme/default/filter_controls.html`
-- `templates/admin/django_smart_filters/theme/default/active_filters_bar.html`
+- `templates/admin/django_admin_smart_filters/theme/default/filter_controls.html`
+- `templates/admin/django_admin_smart_filters/theme/default/active_filters_bar.html`
 
 Backward-compatible wrapper templates remain at:
 
-- `admin/django_smart_filters/filter_controls.html`
-- `admin/django_smart_filters/active_filters_bar.html`
+- `admin/django_admin_smart_filters/filter_controls.html`
+- `admin/django_admin_smart_filters/active_filters_bar.html`
 
 If no adapter is configured, `resolve_theme_adapter(None)` uses the default adapter.

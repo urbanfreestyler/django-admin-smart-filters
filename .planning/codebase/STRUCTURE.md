@@ -1,132 +1,134 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-04-20
+**Analysis Date:** 2026-04-21
 
 ## Directory Layout
 
 ```text
-django-admin-smart-filters/
-├── django_smart_filters/                        # Library package: declarations, query/state engine, admin mixin, templates/static
-│   ├── static/django_smart_filters/             # Browser assets for smart filter UX (`autocomplete.js`)
-│   └── templates/admin/django_smart_filters/    # Django admin template fragments for controls and active chips
-├── tests/                                       # Pytest suite covering declarations, state/query logic, admin integration, UI payloads
-├── docs/                                        # Project-level descriptive documentation
-├── .planning/                                   # Planning artifacts; generated codebase mapping docs live in `.planning/codebase/`
-├── AGENTS.md                                    # Agent workflow constraints and project context
-└── .gitignore                                   # Ignore rules (`__pycache__/`, `*.pyc`, `.idea/`, `.venv/`)
+django-admin-enhanced-filters/
+├── django_smart_filters/         # Library package: contracts, admin mixin, state/query logic
+│   ├── static/django_smart_filters/    # Frontend runtime assets (autocomplete JS)
+│   └── templates/admin/django_smart_filters/  # Template fragments and theme adapter templates
+├── tests/                        # Unit/integration-style tests for all modules and docs snippets
+├── docs/                         # Usage and extension documentation
+├── .planning/                    # GSD planning artifacts and generated codebase maps
+├── AGENTS.md                     # Agent workflow/project guidance
+└── .gitignore                    # Git ignore rules
 ```
 
 ## Directory Purposes
 
-**django_smart_filters/:**
-- Purpose: Keep all runtime package code for smart filtering.
-- Contains: Core contracts and normalization (`contracts.py`, `declarations.py`, `builder.py`, `validation.py`, `params.py`), runtime execution (`state.py`, `query.py`, `autocomplete.py`, `chips.py`), Django admin integration (`admin.py`), templates/static assets.
-- Key files: `django_smart_filters/admin.py`, `django_smart_filters/query.py`, `django_smart_filters/state.py`, `django_smart_filters/autocomplete.py`, `django_smart_filters/contracts.py`.
+**`django_smart_filters/`:**
+- Purpose: Source package implementing smart filter contracts, normalization, query/state processing, admin integration, and theme adapter support.
+- Contains: Python modules (`admin.py`, `query.py`, `state.py`, `autocomplete.py`, `theme.py`, etc.), Django templates, static JS.
+- Key files: `django_smart_filters/admin.py`, `django_smart_filters/declarations.py`, `django_smart_filters/query.py`, `django_smart_filters/state.py`, `django_smart_filters/theme.py`
 
-**django_smart_filters/templates/admin/django_smart_filters/:**
-- Purpose: Render smart filter controls and active-filter bar.
-- Contains: `filter_controls.html`, `autocomplete_control.html`, `active_filters_bar.html`, `chip.html`.
-- Key files: `django_smart_filters/templates/admin/django_smart_filters/filter_controls.html`, `django_smart_filters/templates/admin/django_smart_filters/autocomplete_control.html`.
+**`django_smart_filters/templates/admin/django_smart_filters/`:**
+- Purpose: Render smart filter controls and active-filter chips in Django admin changelist.
+- Contains: Wrapper templates (`filter_controls.html`, `active_filters_bar.html`), reusable partials (`chip.html`, `autocomplete_control.html`), default theme templates under `theme/default/`.
+- Key files: `django_smart_filters/templates/admin/django_smart_filters/theme/default/filter_controls.html`, `django_smart_filters/templates/admin/django_smart_filters/theme/default/active_filters_bar.html`
 
-**django_smart_filters/static/django_smart_filters/:**
-- Purpose: Ship client-side progressive enhancement code for autocomplete behavior.
-- Contains: `autocomplete.js`.
-- Key files: `django_smart_filters/static/django_smart_filters/autocomplete.js`.
+**`django_smart_filters/static/django_smart_filters/`:**
+- Purpose: Progressive enhancement runtime for autocomplete behavior.
+- Contains: Plain JavaScript module for debounce, stale-response guard, async pagination.
+- Key files: `django_smart_filters/static/django_smart_filters/autocomplete.js`
 
-**tests/:**
-- Purpose: Verify behavior of every core module and admin integration path.
-- Contains: Focused test modules by concern (`test_declarations.py`, `test_validation.py`, `test_state.py`, `test_query.py`, `test_autocomplete.py`, `test_admin_filters.py`, `test_autocomplete_admin_endpoint.py`, `test_autocomplete_ui.py`, `test_active_filters_ui.py`).
-- Key files: `tests/test_admin_filters.py`, `tests/test_autocomplete_admin_endpoint.py`, `tests/test_state.py`, `tests/test_query.py`.
+**`tests/`:**
+- Purpose: Verify declarations, state/query semantics, admin integration, autocomplete endpoint/UI, adapters, docs examples.
+- Contains: `test_*.py` modules with in-memory query fakes and RequestFactory-based admin tests.
+- Key files: `tests/test_admin_filters.py`, `tests/test_autocomplete_admin_endpoint.py`, `tests/test_query.py`, `tests/test_state.py`, `tests/test_docs_examples.py`
 
-**docs/:**
-- Purpose: Human-readable project description and goals.
-- Contains: `project_description.md`.
-- Key files: `docs/project_description.md`.
+**`docs/`:**
+- Purpose: Consumer-facing examples and extension contracts.
+- Contains: Markdown guides for project description, extension hooks, adapters, and examples.
+- Key files: `docs/extension_hooks.md`, `docs/theme_adapters.md`, `docs/examples.md`
 
-**.planning/:**
-- Purpose: Planning and orchestration artifacts for GSD workflow.
-- Contains: `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, phase docs, `research/`, and output docs under `.planning/codebase/`.
-- Key files: `.planning/PROJECT.md`, `.planning/codebase/ARCHITECTURE.md`, `.planning/codebase/STRUCTURE.md`.
+**`.planning/`:**
+- Purpose: Planning/research/phase execution artifacts and generated mapping docs.
+- Contains: `PROJECT.md`, `ROADMAP.md`, `STATE.md`, `research/`, `phases/`, `codebase/`.
+- Key files: `.planning/PROJECT.md`, `.planning/research/STACK.md`, `.planning/codebase/ARCHITECTURE.md`
 
 ## Key File Locations
 
 **Entry Points:**
-- `django_smart_filters/admin.py`: Main runtime entrypoint via `SmartFilterAdminMixin` for Django admin integration.
-- `django_smart_filters/builder.py`: Fluent declaration entrypoint `Filter.field(...)`.
-- `django_smart_filters/declarations.py`: Class-style declaration entrypoint `DropdownFilter(...)` and normalization helpers.
-- `django_smart_filters/__init__.py`: Public package export surface.
+- `django_smart_filters/admin.py`: Runtime integration entry for Django admin via `SmartFilterAdminMixin`.
+- `django_smart_filters/__init__.py`: Public package exports for contracts and extension registry APIs.
+- `django_smart_filters/builder.py`: Fluent declaration entry (`Filter.field`).
+- `django_smart_filters/declarations.py`: Class-style declaration entry and normalization.
 
 **Configuration:**
-- `AGENTS.md`: Repository-level workflow and constraints for automated coding agents.
-- `.gitignore`: Workspace ignore policy.
-- Django test settings are configured inline in integration test modules: `tests/test_admin_filters.py`, `tests/test_autocomplete_admin_endpoint.py`, `tests/test_autocomplete_ui.py`.
+- `AGENTS.md`: Agent behavior and GSD workflow rules.
+- `.planning/config.json`: Planning configuration metadata.
+- Not detected: `pyproject.toml`, `setup.py`, `pytest.ini`, `tox.ini` in repository root.
 
 **Core Logic:**
-- `django_smart_filters/contracts.py`: `FilterSpec`, `QueryHook`, `WidgetHook` contracts.
-- `django_smart_filters/validation.py`: Supported filter kinds and spec validation.
-- `django_smart_filters/params.py`: Deterministic URL parameter naming.
-- `django_smart_filters/state.py`: Parse/serialize filter state to/from `QueryDict`.
-- `django_smart_filters/query.py`: Apply normalized state to queryset.
-- `django_smart_filters/autocomplete.py`: Parse autocomplete request + paginated search.
-- `django_smart_filters/chips.py`: Build active chip view models and removal/reset URLs.
+- `django_smart_filters/contracts.py`: Core protocols/contracts (`FilterSpec`, hooks, component base).
+- `django_smart_filters/validation.py`: Spec validation and supported kind enforcement.
+- `django_smart_filters/query.py`: Queryset application for each filter kind.
+- `django_smart_filters/state.py`: URL query parsing and serialization.
+- `django_smart_filters/autocomplete.py`: Autocomplete request validation and search pagination.
+- `django_smart_filters/chips.py`: Active chip generation and URL mutation helpers.
+- `django_smart_filters/theme.py`: Adapter contract/default resolution.
+- `django_smart_filters/registry.py`: Component extension registration and resolution.
 
 **Testing:**
-- `tests/test_declarations.py`: Declaration equivalence and normalization expectations.
-- `tests/test_validation.py`: Validation errors and collision handling.
-- `tests/test_state.py`: Query string parsing/serialization invariants.
-- `tests/test_query.py`: Queryset application by filter kind and query hook behavior.
-- `tests/test_autocomplete.py`: Autocomplete request parsing and pagination semantics.
-- `tests/test_admin_filters.py`: Mixin changelist context and queryset integration.
-- `tests/test_autocomplete_admin_endpoint.py`: Endpoint behavior and URL registration.
-- `tests/test_autocomplete_ui.py`: Template/JS expectations for lazy autocomplete UI.
-- `tests/test_active_filters_ui.py`: Chip labels and remove/reset URL determinism.
+- `tests/test_declarations.py`: Declaration normalization and equivalence tests.
+- `tests/test_validation.py`: Validation failure coverage.
+- `tests/test_query.py`: Kind-aware queryset filtering behavior.
+- `tests/test_state.py`: QueryDict parse/serialize behavior.
+- `tests/test_admin_filters.py`: Changelist integration and context coverage.
+- `tests/test_autocomplete_admin_endpoint.py`: JSON endpoint behavior and route registration.
+- `tests/test_autocomplete_ui.py`: Template/JS metadata and client behavior assertions.
+- `tests/test_theme_adapters.py`: Adapter resolution and template selection.
+- `tests/test_extension_registry.py`: Registry behavior and hook persistence.
+- `tests/test_docs_examples.py`: Executable docs snippet checks.
 
 ## Naming Conventions
 
 **Files:**
-- Python modules use snake_case: `django_smart_filters/autocomplete.py`, `django_smart_filters/test_state.py` style under `tests/`.
-- Tests use `test_*.py`: `tests/test_query.py`, `tests/test_autocomplete_admin_endpoint.py`.
-- Template fragments use snake_case `.html`: `active_filters_bar.html`, `filter_controls.html`.
+- `snake_case.py` for source and tests: `django_smart_filters/autocomplete.py`, `tests/test_active_filters_ui.py`.
+- Test modules use `test_<area>.py`: `tests/test_theme_adapters.py`.
+- Template fragments use `snake_case.html`: `django_smart_filters/templates/admin/django_smart_filters/autocomplete_control.html`.
 
 **Directories:**
-- Package and nested static/template directories use snake_case and Django conventions: `django_smart_filters/`, `django_smart_filters/static/django_smart_filters/`, `django_smart_filters/templates/admin/django_smart_filters/`.
+- Python package and directories use lowercase with underscores where needed: `django_smart_filters/`.
+- Django template hierarchy follows admin namespace path: `templates/admin/django_smart_filters/theme/default/`.
+- Static files are namespaced by package: `static/django_smart_filters/`.
 
 ## Where to Add New Code
 
 **New Feature:**
-- Primary code: add domain logic in `django_smart_filters/` near existing concern module (state/query/autocomplete/chips/declarations).
-- Admin wiring: extend `django_smart_filters/admin.py` only for orchestration/hook points.
-- Tests: add/extend focused module under `tests/test_<concern>.py`; add integration coverage in `tests/test_admin_filters.py` or `tests/test_autocomplete_admin_endpoint.py` when behavior touches admin lifecycle.
+- Primary code: Add domain logic under `django_smart_filters/` by concern (e.g., new query behavior in `django_smart_filters/query.py` or new module like `django_smart_filters/<feature>.py`).
+- Tests: Add corresponding `tests/test_<feature>.py` with focused unit behavior and admin integration coverage where applicable.
 
 **New Component/Module:**
-- Implementation: add new Python module in `django_smart_filters/` with snake_case filename and export through explicit imports where needed.
-- UI fragment: place templates in `django_smart_filters/templates/admin/django_smart_filters/` and static assets in `django_smart_filters/static/django_smart_filters/`.
+- Implementation: Define extension contracts/components in `django_smart_filters/contracts.py` or dedicated module; register/resolve behavior in `django_smart_filters/registry.py`; normalize usage in `django_smart_filters/declarations.py`.
 
 **Utilities:**
-- Shared helpers: colocate by concern in existing modules (`params.py` for param naming, `validation.py` for schema checks, `chips.py` for URL/chip helpers). Add a dedicated module under `django_smart_filters/` only when the helper does not fit existing concern boundaries.
+- Shared helpers: Place reusable, pure helper logic in focused modules under `django_smart_filters/` (pattern examples: `django_smart_filters/params.py`, `django_smart_filters/validation.py`).
 
 ## Special Directories
 
-**`django_smart_filters/__pycache__/`:**
-- Purpose: Python bytecode cache.
-- Generated: Yes.
-- Committed: No (ignored by `.gitignore`).
+**`django_smart_filters/templates/`:**
+- Purpose: Django template fragments for admin rendering and theme adapters.
+- Generated: No
+- Committed: Yes
+
+**`django_smart_filters/static/`:**
+- Purpose: Browser-side runtime assets used by templates.
+- Generated: No
+- Committed: Yes
 
 **`tests/__pycache__/`:**
-- Purpose: Python bytecode cache for test modules.
-- Generated: Yes.
-- Committed: No (ignored by `.gitignore`).
-
-**`.venv/`:**
-- Purpose: Local virtual environment.
-- Generated: Yes.
-- Committed: No (ignored by `.gitignore`).
+- Purpose: Python bytecode cache from local test execution.
+- Generated: Yes
+- Committed: No (ignored workspace artifact)
 
 **`.planning/codebase/`:**
-- Purpose: Generated architecture/structure/quality/stack mapping docs consumed by GSD planning/execution commands.
-- Generated: Yes.
-- Committed: Yes (planning artifacts directory is tracked in repository structure).
+- Purpose: Generated codebase mapping documents consumed by GSD planner/executor.
+- Generated: Yes
+- Committed: Yes
 
 ---
 
-*Structure analysis: 2026-04-20*
+*Structure analysis: 2026-04-21*

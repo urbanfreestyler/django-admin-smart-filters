@@ -8,32 +8,46 @@ Django Smart Filters is a reusable filtering framework for Django Admin that imp
 
 Django admins can quickly find the records they need through fast, extensible, and theme-compatible filters, even at high data scale.
 
+## Current Milestone: v1.1 Release Readiness
+
+**Goal:** Prepare Django Smart Filters for a reliable first package release.
+
+**Target features:**
+- Add packaging metadata and release configuration (`pyproject.toml`, package metadata, versioning baseline)
+- Build and validate distribution artifacts (sdist/wheel plus install/import smoke checks)
+- Establish release quality gates (tests, lint, type checks, pre-commit, CI-ready checks)
+- Finalize release docs (install and usage docs, changelog, release notes)
+
 ## Requirements
 
 ### Validated
 
 - ✓ Provide a declarative API to define admin filters with minimal boilerplate — validated in Phase 1
 - ✓ Deliver core built-in changelist filters and UX in default Django Admin (dropdown, multi-select, date range, numeric range, boolean toggle, active chips, clear/reset, URL-persistent state) — validated in Phase 2
+- ✓ Deliver async autocomplete for high-cardinality datasets with server-side search, pagination, and debounced UI behavior — validated in Phase 3
+- ✓ Deliver theme adapters, extension hooks, and copyable docs for custom component and template integration — validated in Phase 4
 
 ### Active
 
-- [ ] Ship production-ready async autocomplete filters for Django Admin
-- [ ] Support high-cardinality fields with server-side search and pagination
-- [ ] Ensure compatibility with default Django Admin and an adapter pattern for custom themes
-- [ ] Document extension points for custom filter types and widgets
+- [ ] Publish complete package metadata for PyPI-ready release artifacts
+- [ ] Build and validate distributable artifacts (`sdist`, `wheel`) with install/import smoke checks
+- [ ] Establish reproducible release quality gates for tests, lint, typing, and CI workflow
+- [ ] Publish release documentation and changelog for first public release
 
 ### Out of Scope
 
 - Full React/Vue frontend rewrite for admin filters — not needed for MVP and adds unnecessary complexity
 - Analytics dashboard functionality — separate problem from admin filtering UX
 - Overly abstract plugin meta-framework — prioritize practical extension hooks first
+- Net-new filter feature expansion in this milestone — release readiness only
 
 ## Context
 
 - Django's built-in `list_filter` works for simple cases but degrades with high-cardinality relations and limited UX controls.
 - The project is intended as a library-style enhancement for Django Admin, not a full admin replacement.
 - The idea emphasizes a UI-agnostic architecture: backend filter logic, lightweight frontend behavior, and adapter-based theming.
-- Initial implementation focus is MVP-level: dropdown + autocomplete, default admin support, and clear docs/examples.
+- Milestone v1.0 implementation is complete across 4 phases (API foundation, built-in filters and UX, async autocomplete, theme adapters and extension docs).
+- Current workspace includes an in-progress package namespace rename to `django_admin_smart_filters` that must be reflected consistently in release artifacts and documentation.
 
 ## Constraints
 
@@ -69,4 +83,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-20 after Phase 2 completion*
+*Last updated: 2026-04-21 after starting milestone v1.1*

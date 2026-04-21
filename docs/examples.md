@@ -5,10 +5,10 @@
 ```python
 from django.contrib import admin
 
-from django_smart_filters import FilterComponent, register_filter_component
-from django_smart_filters.admin import SmartFilterAdminMixin
-from django_smart_filters.builder import Filter
-from django_smart_filters.theme import ThemeAdapter
+from django_admin_smart_filters import FilterComponent, register_filter_component
+from django_admin_smart_filters.admin import SmartFilterAdminMixin
+from django_admin_smart_filters.builder import Filter
+from django_admin_smart_filters.theme import ThemeAdapter
 
 
 class StatusBadgeComponent(FilterComponent):
@@ -34,8 +34,8 @@ def widget_hint(context, spec):
 class OrderAdmin(SmartFilterAdminMixin, admin.ModelAdmin):
     smart_filter_theme_adapter = ThemeAdapter(
         name="acme",
-        controls_template="admin/django_smart_filters/filter_controls.html",
-        active_bar_template="admin/django_smart_filters/active_filters_bar.html",
+        controls_template="admin/django_admin_smart_filters/filter_controls.html",
+        active_bar_template="admin/django_admin_smart_filters/active_filters_bar.html",
     )
 
     smart_filters = [

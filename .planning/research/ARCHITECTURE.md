@@ -1,7 +1,7 @@
 # Architecture Research
 
-**Domain:** Django admin filtering framework (library)
-**Researched:** 2026-04-20
+**Domain:** Django reusable admin library release-readiness architecture
+**Researched:** 2026-04-21
 **Confidence:** HIGH
 
 ## Standard Architecture
@@ -10,32 +10,28 @@
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                        Django Admin Integration Layer                        │
+│                        Source & Runtime Layer                               │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────┐   ┌──────────────────────┐   ┌──────────────────┐  │
-│  │ ModelAdmin Mixin    │   │ Filter Registration  │   │ URL Hooking      │  │
-│  │ (list_filter bridge)│   │ (declarative API)    │   │ (get_urls)       │  │
-│  └──────────┬──────────┘   └──────────┬───────────┘   └────────┬─────────┘  │
-│             │                         │                         │            │
-├─────────────┴─────────────────────────┴─────────────────────────┴────────────┤
-│                    Filter Engine + Presentation Contract                      │
+│  ┌───────────────────────┐  ┌──────────────────────┐  ┌───────────────────┐ │
+│  │ django_admin_* package│  │ templates/static      │  │ docs examples     │ │
+│  │ (public API + logic)  │  │ (packaged assets)     │  │ (import snippets) │ │
+│  └────────────┬──────────┘  └────────────┬─────────┘  └─────────┬─────────┘ │
+│               │                          │                      │           │
+├───────────────┴──────────────────────────┴──────────────────────┴───────────┤
+│                         Packaging & Metadata Layer                            │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────────────────┐  │
-│  │ Filter Spec      │  │ Query Compiler   │  │ UI Context Builder         │  │
-│  │ (what filter is) │  │ (spec -> Q/ORM)  │  │ (widget config + state)    │  │
-│  └────────┬─────────┘  └────────┬─────────┘  └──────────────┬─────────────┘  │
-│           │                     │                           │                │
-├───────────┴─────────────────────┴───────────────────────────┴────────────────┤
-│               Delivery Layer (Templates, JS, Async Endpoints)                │
+│  ┌─────────────────────┐  ┌─────────────────────┐  ┌──────────────────────┐ │
+│  │ pyproject.toml      │  │ README/CHANGELOG    │  │ MANIFEST/build config│ │
+│  │ (build + metadata)  │  │ (PyPI rendering)    │  │ (template/static incl)| │
+│  └────────────┬────────┘  └────────────┬────────┘  └───────────┬──────────┘ │
+│               │                        │                        │           │
+├───────────────┴────────────────────────┴────────────────────────┴───────────┤
+│                        Verification & Delivery Layer                          │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────┐  ┌────────────────────┐  ┌──────────────────────────┐  │
-│  │ Theme Adapter    │  │ Widget Templates   │  │ Autocomplete Endpoint    │  │
-│  │ (layout contract)│  │ (HTML fragments)   │  │ (permissioned JSON)      │  │
-│  └────────┬─────────┘  └─────────┬──────────┘  └─────────────┬────────────┘  │
-│           │                      │                           │                │
-├───────────┴──────────────────────┴───────────────────────────┴────────────────┤
-│                         Data + Infrastructure Layer                            │
-│                  Django ORM / DB indexes / optional cache                      │
+│  ┌─────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐ │
+│  │ local quality gates │  │ CI matrix + artifacts│  │ publish workflow     │ │
+│  │ (ruff/mypy/pytest)  │  │ (wheel/sdist checks) │  │ (trusted publisher)  │ │
+│  └─────────────────────┘  └──────────────────────┘  └──────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -43,237 +39,147 @@
 
 | Component | Responsibility | Typical Implementation |
 |-----------|----------------|------------------------|
-| `AdminIntegration` | Attach framework to `ModelAdmin`, map declarative filter definitions into admin lifecycle | `ModelAdmin` mixin + `list_filter` bridge + `get_urls()` extension |
-| `FilterRegistry` | Source of truth for enabled filters, parameter names, widget type, query strategy | Python registry objects keyed by parameter name |
-| `FilterEngine` | Parse request params, validate values, apply to queryset deterministically | `SimpleListFilter`/custom classes + service layer producing `Q` objects |
-| `UIContract` | Build normalized render context independent of specific theme HTML | Dataclass/dict contract shared by templates/adapters |
-| `ThemeAdapter` | Map UI contract into concrete template partials, CSS classes, and JS hooks per theme | Adapter interface (`render_filter`, `container_classes`, `assets`) |
-| `AsyncEndpoint` | Handle autocomplete/search/pagination for high-cardinality fields with permission checks | Admin-scoped JSON view registered via `ModelAdmin.get_urls()` |
-| `FrontendController` | Progressive enhancement: bind inputs, debounce search, sync URL params | Lightweight vanilla JS module loaded through admin Media |
+| Runtime package (`django_admin_smart_filters/`) | Stable import/runtime API and admin integration behavior | Existing modules (`admin.py`, `declarations.py`, `query.py`, etc.) plus packaged templates/static |
+| Packaging metadata | Define install/build identity and compatibility | `pyproject.toml` (`[build-system]`, `[project]`, dependencies, classifiers, URLs) |
+| Distribution file selection | Ensure templates/static/docs/license are included in sdist/wheel correctly | Build backend include rules (`tool.hatch.build...`) and optional `MANIFEST.in` fallback |
+| Docs surface | PyPI-facing install/usage and release history | Root `README.md`, `CHANGELOG.md`, `docs/` references |
+| Quality gate runner | Prevent shipping broken/undocumented artifacts | Pre-commit + CI steps for `ruff`, `mypy`, `pytest`, docs snippet compile/exec tests |
+| Artifact validation | Verify installability and importability of built files (not just source tree) | `python -m build`, `twine check dist/*`, clean-venv `pip install dist/*.whl` smoke imports |
+| Release automation | Publish only verified artifacts with minimal credential risk | GitHub Actions + PyPI Trusted Publisher (`pypa/gh-action-pypi-publish`) |
 
 ## Recommended Project Structure
 
 ```text
-django_smart_filters/
-├── __init__.py                    # Public exports
-├── apps.py                        # Django app config
-├── admin/
-│   ├── mixins.py                  # SmartFilterAdminMixin for ModelAdmin
-│   ├── changelist.py              # Optional ChangeList integration helpers
-│   └── urls.py                    # URL helpers for async endpoints
-├── filters/
-│   ├── specs.py                   # Declarative filter specs
-│   ├── registry.py                # Registration/discovery
-│   ├── params.py                  # Querystring parsing + validation
-│   ├── compiler.py                # Spec -> ORM/Q translation
-│   └── builtins/
-│       ├── dropdown.py            # Dropdown backend behavior
-│       └── autocomplete.py        # Autocomplete backend behavior
-├── endpoints/
-│   ├── views.py                   # JSON endpoints for async options
-│   ├── schema.py                  # Response shape helpers
-│   └── permissions.py             # Admin permission/visibility guards
-├── ui/
-│   ├── contracts.py               # Theme-agnostic render context
-│   ├── templates/
-│   │   └── django_smart_filters/  # Default template partials
-│   └── static/django_smart_filters/
-│       └── filters.js             # Progressive enhancement controller
-├── themes/
-│   ├── base.py                    # Adapter interface
-│   ├── default_admin.py           # Default Django admin adapter
-│   └── registry.py                # Adapter selection logic
-└── tests/
-    ├── test_filters_engine.py
-    ├── test_endpoints.py
-    ├── test_theme_adapters.py
-    └── test_admin_integration.py
+django-admin-enhanced-filters/
+├── django_admin_smart_filters/              # Runtime package (already exists)
+│   ├── static/django_admin_smart_filters/   # JS assets (must ship in wheel)
+│   └── templates/admin/django_admin_smart_filters/
+├── tests/                                   # Unit/integration/docs tests (already exists)
+├── docs/                                    # User docs (already exists)
+├── pyproject.toml                           # NEW: canonical build + metadata config
+├── README.md                                # NEW: PyPI long description entry point
+├── CHANGELOG.md                             # NEW: release notes and version history
+├── LICENSE                                  # NEW: explicit OSS licensing for redistribution
+├── .pre-commit-config.yaml                  # NEW: reproducible local quality gate
+├── .github/workflows/
+│   ├── ci.yml                               # NEW: matrix test/lint/type + build verify
+│   └── publish.yml                          # NEW: trusted publish from tags/releases
+└── .gitignore                               # MOD: ignore build/release artifacts (dist/, build/, *.egg-info/)
 ```
 
 ### Structure Rationale
 
-- **`filters/`:** Keeps business logic (query semantics) separate from rendering and HTTP details.
-- **`ui/` + `themes/`:** Enforces a clean contract so theme differences do not leak into filter/query logic.
-- **`endpoints/`:** Isolates async concerns (pagination, permission checks, response shape) from page rendering.
-- **`admin/`:** Single integration seam with Django admin hooks (`list_filter`, `Media`, `get_urls`).
+- **Keep runtime package unchanged as release unit**: architecture already cleanly layered; release prep should add packaging/verification around it, not refactor internals.
+- **Make `pyproject.toml` the single source of release truth**: dependencies, Python/Django compatibility, package data inclusion, and tool config should converge there.
+- **Separate CI (`ci.yml`) from publish (`publish.yml`)**: prevents accidental releases and enforces “build once, publish verified artifact.”
 
 ## Architectural Patterns
 
-### Pattern 1: Declarative Filter Spec + Compiled Query Strategy
+### Pattern 1: Build-from-Artifact, not Build-from-Source-Assumption
 
-**What:** Define filters as metadata/spec objects, then compile into queryset operations.
-**When to use:** Always; this is the core extensibility mechanism.
-**Trade-offs:** Slightly more abstraction up front, but prevents ad-hoc query logic spread across templates and views.
-
-**Example:**
-```python
-from dataclasses import dataclass
-
-@dataclass
-class FilterSpec:
-    name: str
-    param: str
-    widget: str          # "dropdown" | "autocomplete"
-    lookup: str          # e.g. "status", "author__id"
-
-def apply_filter(qs, spec: FilterSpec, raw_value: str):
-    if not raw_value:
-        return qs
-    return qs.filter(**{spec.lookup: raw_value})
-```
-
-### Pattern 2: Theme Adapter Boundary
-
-**What:** Keep a stable UI contract and let adapters translate to theme-specific templates/CSS hooks.
-**When to use:** Required once supporting both default admin and custom themes.
-**Trade-offs:** More files, but avoids hardcoded assumptions and reduces rewrite risk.
+**What:** Validate the produced wheel/sdist in a clean environment.
+**When to use:** Always before first public release and for every tagged release.
+**Trade-offs:** Slightly slower pipeline, much lower risk of missing files or broken metadata.
 
 **Example:**
-```python
-class BaseThemeAdapter:
-    name = "base"
-
-    def filter_template(self, widget_type: str) -> str:
-        raise NotImplementedError
-
-class DefaultAdminAdapter(BaseThemeAdapter):
-    name = "django_admin"
-
-    def filter_template(self, widget_type: str) -> str:
-        return f"django_smart_filters/default/{widget_type}.html"
+```bash
+python -m build
+python -m twine check dist/*
+python -m pip install --force-reinstall dist/*.whl
+python -c "import django_admin_smart_filters as pkg; print(pkg.__all__)"
 ```
 
-### Pattern 3: Progressive Enhancement for Async Widgets
+### Pattern 2: Source Name / Distribution Name Contract
 
-**What:** Server renders initial filter shell; JS adds async behavior for autocomplete.
-**When to use:** High-cardinality fields where static choices are too large.
-**Trade-offs:** Requires endpoint + JS coordination, but keeps admin functional without SPA complexity.
+**What:** Explicitly manage the rename boundary: distribution name on PyPI vs import package path.
+**When to use:** Required now due to in-progress namespace rename noted in project context.
+**Trade-offs:** Needs explicit docs/tests, but avoids user-facing import confusion.
+
+**Example:**
+```toml
+[project]
+name = "django-admin-smart-filters"  # distribution name
+
+# tests/docs must consistently import:
+# from django_admin_smart_filters import ...
+```
+
+### Pattern 3: Dual Gate Pipeline (Quality Gate + Release Gate)
+
+**What:** CI runs full checks on pushes/PRs; publish runs only from immutable release refs and only after build job success.
+**When to use:** Standard for package reliability and supply-chain hygiene.
+**Trade-offs:** More workflow files, but clearer operational safety.
 
 ## Data Flow
 
-### Request Flow
+### Request Flow (Release Prep Capability Flow)
 
 ```text
-[Admin changelist request]
+[Code/docs change]
     ↓
-[ModelAdmin + SmartFilterAdminMixin]
+[Local gate: pre-commit + pytest]
     ↓
-[FilterRegistry loads specs]
+[CI gate: lint/type/test matrix]
     ↓
-[Params parser validates querystring]
+[Build artifacts: sdist + wheel]
     ↓
-[FilterEngine applies queryset filters]
+[Artifact validation: twine check + install/import smoke]
     ↓
-[UIContract builder prepares widget context]
+[Tag/release event]
     ↓
-[ThemeAdapter selects template fragments]
-    ↓
-[Django template renders sidebar + assets]
-```
-
-### Async Autocomplete Flow
-
-```text
-[User types in autocomplete widget]
-    ↓ (debounced JS)
-[GET /admin/.../smart-filter-options/?q=...&page=...]
-    ↓
-[Endpoint permission + filter visibility checks]
-    ↓
-[Backend search + pagination query]
-    ↓
-[JSON options payload]
-    ↓
-[Widget updates options list and hidden value]
-    ↓
-[Form submit -> changelist URL params updated]
+[Trusted publisher uploads already-verified artifacts]
 ```
 
 ### State Management
 
 ```text
-URL querystring = source of truth
+pyproject.toml = canonical package state
     ↓
-Server parses params -> queryset + selected UI state
+CI reads same config for lint/type/test/build
     ↓
-Templates render selected filter values
+dist/* artifacts represent release state
     ↓
-JS only mutates query params / fetches options (no separate app state store)
+CHANGELOG.md + Git tag represent public version state
 ```
 
 ### Key Data Flows
 
-1. **Filter application flow:** URL params -> validated filter values -> queryset constraints -> result list.
-2. **Filter options flow:** User search term -> async endpoint -> paginated option set -> widget display.
-3. **Theme rendering flow:** UI contract -> adapter -> theme-specific templates/classes.
-
-## Component Boundaries (Who Talks to What)
-
-| Component | Talks To | Communication | Rule |
-|-----------|----------|---------------|------|
-| `ModelAdmin` mixin | `FilterRegistry`, `FilterEngine`, `ThemeAdapter` | Python method calls | `ModelAdmin` never contains filter query logic directly |
-| `FilterEngine` | Django ORM only | QuerySet/Q operations | No template or theme concerns inside engine |
-| `ThemeAdapter` | `UIContract`, Django templates | Context + template name | No database access inside adapter |
-| `FrontendController` | `AsyncEndpoint` | HTTP JSON | No direct access to queryset logic |
-| `AsyncEndpoint` | `FilterRegistry`, ORM, permission checks | Python + ORM + JSON response | Must enforce admin permissions and scoped data |
-
-## Suggested Build Order (Dependency-Driven)
-
-1. **Core filter domain (specs, params, compiler, engine)**
-   - Dependency base for everything else.
-   - Deliverables: deterministic queryset filtering + tests.
-
-2. **Admin integration seam (`ModelAdmin` mixin + registration)**
-   - Wires engine into real admin changelist lifecycle.
-   - Deliverables: dropdown filter working end-to-end without async.
-
-3. **UI contract + default theme adapter + templates**
-   - Stabilizes rendering boundary before adding multiple themes.
-   - Deliverables: default Django admin rendering parity.
-
-4. **Async endpoint + frontend controller (autocomplete)**
-   - Depends on established registry + permission model + UI contract.
-   - Deliverables: high-cardinality autocomplete with pagination.
-
-5. **Additional theme adapters + adapter test matrix**
-   - Safe to add once contract is stable.
-   - Deliverables: adapter compatibility layer and docs.
-
-6. **Performance hardening (indexes, caching, benchmark fixtures)**
-   - Last, after usage patterns are known.
+1. **Metadata flow:** `pyproject.toml` -> wheel/sdist metadata -> PyPI project page fields.
+2. **Asset inclusion flow:** `django_admin_smart_filters/templates|static` -> build backend inclusion -> import/runtime render correctness.
+3. **Docs correctness flow:** docs snippets -> `tests/test_docs_examples.py` -> release docs confidence.
 
 ## Scaling Considerations
 
 | Scale | Architecture Adjustments |
 |-------|--------------------------|
-| 0-1k admin users | Monolithic Django app, no cache required, focus on correct query logic |
-| 1k-100k records per filtered model | Add DB indexes on filtered/search fields; optimize queryset/select_related |
-| 100k+ to 1M+ records | Strictly async option loading, aggressive pagination, optional caching for hot option lookups |
+| 1 maintainer, early releases | Single CI workflow + manual release tags is sufficient |
+| Multiple maintainers, regular patch releases | Enforce required checks, protected release tags, and Trusted Publishing only |
+| High adoption / frequent releases | Add stricter matrix (Django 5.2 + 6.0, Python 3.12–3.14), changelog automation, and release candidate TestPyPI lane |
 
 ### Scaling Priorities
 
-1. **First bottleneck: option loading for high-cardinality fields** — fix with async autocomplete + server-side search.
-2. **Second bottleneck: expensive facet/count/filter combinations** — reduce expensive counts and optimize DB indexes/query plans.
+1. **First bottleneck:** namespace/metadata drift (`django_smart_filters` vs `django_admin_smart_filters`) across docs/planning/release files.
+2. **Second bottleneck:** missing packaged non-Python assets (templates/static) only discovered post-release.
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Query logic embedded in templates/widgets
+### Anti-Pattern 1: “Tests pass in repo, therefore release is safe”
 
-**What people do:** Put filtering decisions in template tags or JS conditionals.
-**Why it's wrong:** Duplicates logic, breaks testability, and causes behavior drift across themes.
-**Do this instead:** Centralize all query semantics in `FilterEngine`.
+**What people do:** Run `pytest` only, skip build/install validation.
+**Why it's wrong:** Does not verify wheel/sdist completeness or metadata rendering.
+**Do this instead:** Add explicit artifact validation stage (`build`, `twine check`, clean install/import smoke).
 
-### Anti-Pattern 2: Eagerly loading full choice lists
+### Anti-Pattern 2: Publishing with long-lived API token in CI secrets
 
-**What people do:** Render all filter options server-side for large relations.
-**Why it's wrong:** Slow pages, memory blowups, poor UX.
-**Do this instead:** Use async autocomplete endpoints with pagination.
+**What people do:** Store account-wide token indefinitely in CI.
+**Why it's wrong:** Larger blast radius if compromised.
+**Do this instead:** Use PyPI Trusted Publisher (OIDC) with short-lived minted upload tokens.
 
-### Anti-Pattern 3: Bypassing admin permission checks in async endpoints
+### Anti-Pattern 3: Mixing release files into runtime module decisions
 
-**What people do:** Expose raw JSON search endpoint without admin-scoped permissions.
-**Why it's wrong:** Potential data disclosure.
-**Do this instead:** Reuse admin permission gates and model-level visibility checks in endpoint layer.
+**What people do:** Refactor runtime internals while adding packaging/CI in same milestone.
+**Why it's wrong:** Expands risk surface and delays release.
+**Do this instead:** Keep this milestone architectural scope to packaging + gates + docs + artifact verification.
 
 ## Integration Points
 
@@ -281,25 +187,74 @@ JS only mutates query params / fetches options (no separate app state store)
 
 | Service | Integration Pattern | Notes |
 |---------|---------------------|-------|
-| Database (PostgreSQL/MySQL/SQLite) | Django ORM queries from `FilterEngine` and endpoints | Indexes on filter/search columns are critical at scale |
-| Optional cache (Redis/local-memory) | Cache hot autocomplete result pages | Optional; add only after measuring hotspot latency |
+| GitHub Actions | CI + artifact build + gated publish jobs | Use separate `ci.yml` and `publish.yml` with publish depending on build artifacts |
+| PyPI/TestPyPI | Twine/gh-action upload target | Prefer Trusted Publishing over static API tokens |
+| Packaging toolchain (`build`, `twine`) | CLI validation in CI and local release scripts | `twine check` catches README rendering errors early |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| `admin ↔ filters` | Direct Python API | Keeps admin hook code thin and declarative |
-| `filters ↔ ui` | UI contract object | Prevents theme coupling to query logic |
-| `ui ↔ themes` | Adapter interface | Enables default admin + custom theme support |
-| `frontend ↔ endpoints` | JSON HTTP | Stable schema required for backward compatibility |
+| `pyproject.toml` ↔ runtime package dir | package include config + import path | Must explicitly include templates/static to avoid runtime template failures |
+| `docs/` ↔ `tests/test_docs_examples.py` | executable snippet validation | Existing test file is a strong release-readiness gate; keep it in CI |
+| `requirements-dev.txt` ↔ CI steps | dev dependency installation | Maintain alignment; avoid duplicated divergent tool pins |
+| Namespace rename context ↔ docs/planning files | text references/import examples | Update stale `django_smart_filters` references before release to prevent onboarding errors |
+
+## New vs Modified Components (Release Prep)
+
+### New files/components
+
+- `pyproject.toml` (build system + project metadata + tool config)
+- `README.md` (PyPI long description entry)
+- `CHANGELOG.md` (versioned release history)
+- `LICENSE` (redistribution/legal requirement)
+- `.pre-commit-config.yaml` (local gate automation)
+- `.github/workflows/ci.yml` (quality + artifact validation)
+- `.github/workflows/publish.yml` (trusted publish)
+
+### Modified existing files/components
+
+- `.gitignore` -> add `dist/`, `build/`, `*.egg-info/`, `.mypy_cache/`, `.ruff_cache/`
+- `requirements-dev.txt` -> add `build`, `twine` (and optional `tox`/`nox` if used)
+- `docs/project_description.md` + docs examples -> ensure package name/import paths and install instructions reflect release name
+- `.planning/codebase/*.md` where stale `django_smart_filters` naming appears (to avoid internal drift)
+- `django_admin_smart_filters/__init__.py` (only if version export strategy is adopted)
+
+## Suggested Build Order (Dependency-Driven)
+
+1. **Stabilize naming contract (import vs distribution) + docs alignment**
+   - Fixes highest confusion risk before any metadata is frozen.
+
+2. **Add `pyproject.toml` with complete metadata + package data rules**
+   - Foundation for all subsequent CI/build work.
+
+3. **Add release docs surface (`README.md`, `CHANGELOG.md`, `LICENSE`)**
+   - Required for valid, user-facing artifacts and PyPI rendering.
+
+4. **Add local and CI quality gates (`pre-commit`, `ci.yml`)**
+   - Must pass before publish automation is enabled.
+
+5. **Add artifact validation stage (`build` + `twine check` + smoke install/import)**
+   - Ensures generated artifacts are truly releasable.
+
+6. **Add publish workflow with Trusted Publisher (`publish.yml`)**
+   - Final step after all quality and artifact checks are proven green.
+
+7. **Run dry-run release to TestPyPI (optional but recommended)**
+   - Final confidence step before first public PyPI release.
 
 ## Sources
 
-- Django admin list filters (official): https://docs.djangoproject.com/en/stable/ref/contrib/admin/filters/
-- Django `ModelAdmin` reference (`list_filter`, `autocomplete_fields`, `get_urls`, `search_fields`, `show_facets`): https://docs.djangoproject.com/en/stable/ref/contrib/admin/
-- Django admin JavaScript customization: https://docs.djangoproject.com/en/stable/ref/contrib/admin/javascript/
-- Django template override strategy: https://docs.djangoproject.com/en/stable/howto/overriding-templates/
+- Python Packaging User Guide — writing `pyproject.toml`: https://packaging.python.org/en/latest/guides/writing-pyproject-toml/ (HIGH)
+- Python Packaging User Guide — packaging projects/tutorial (`python -m build`, dist flow): https://packaging.python.org/en/latest/tutorials/packaging-projects/ (HIGH)
+- Python Packaging User Guide — GitHub Actions publishing guide (trusted publishing patterns): https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/ (HIGH)
+- GitHub Docs — building/testing Python workflows and matrix patterns: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python (HIGH)
+- Twine docs (`twine check`, upload behavior): https://twine.readthedocs.io/en/stable/ (HIGH)
+- PyPI help — API tokens and trusted publisher recommendation: https://pypi.org/help/#apitoken (HIGH)
+- PyPI Docs — Trusted Publishers model and short-lived tokens: https://docs.pypi.org/trusted-publishers/ (HIGH)
+- Django docs — reusable app packaging expectations including templates/static handling and `MANIFEST.in` context: https://docs.djangoproject.com/en/6.0/intro/reusable-apps/ (HIGH)
+- Repository evidence (`.planning/PROJECT.md`, `.planning/codebase/*`, `requirements-dev.txt`, `tests/test_docs_examples.py`) (HIGH)
 
 ---
-*Architecture research for: Django Smart Filters*
-*Researched: 2026-04-20*
+*Architecture research for: Django Smart Filters release readiness*
+*Researched: 2026-04-21*

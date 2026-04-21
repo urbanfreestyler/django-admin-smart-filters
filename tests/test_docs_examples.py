@@ -54,5 +54,9 @@ def test_theme_adapter_snippet_uses_valid_template_contract_paths() -> None:
 
     adapter = namespace.get("adapter")
     assert adapter is not None
-    assert str(getattr(adapter, "controls_template", "")).startswith("admin/django_admin_smart_filters/")
-    assert str(getattr(adapter, "active_bar_template", "")).startswith("admin/django_admin_smart_filters/")
+    assert str(getattr(adapter, "controls_template", "")).startswith(
+        "admin/django_admin_smart_filters/"
+    )
+    assert str(getattr(adapter, "active_bar_template", "")).startswith(
+        "admin/django_admin_smart_filters/"
+    )

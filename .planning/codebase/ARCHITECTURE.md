@@ -1,124 +1,134 @@
 # Architecture
 
-**Analysis Date:** 2026-04-20
+**Analysis Date:** 2026-04-21
 
 ## Pattern Overview
 
-**Overall:** Layered Django admin mixin with a functional core for declaration normalization, URL state parsing, queryset application, and UI rendering.
+**Overall:** Layered Django admin extension library with declarative configuration and adapter-based rendering.
 
 **Key Characteristics:**
-- Use `SmartFilterAdminMixin` in `django_smart_filters/admin.py` as the single integration point with `ModelAdmin` lifecycle methods (`get_queryset`, `changelist_view`, `get_urls`).
-- Keep filter logic in pure-ish functions (`django_smart_filters/declarations.py`, `django_smart_filters/state.py`, `django_smart_filters/query.py`, `django_smart_filters/chips.py`) so behavior is deterministic and testable without DB-heavy setup.
-- Drive all behavior from normalized `FilterSpec` contracts defined in `django_smart_filters/contracts.py`.
+- Keep Django admin as the orchestration surface by extending `ModelAdmin` through `SmartFilterAdminMixin` in `django_smart_filters/admin.py`.
+- Normalize all declaration styles into one internal contract (`FilterSpec`) before any state/query processing in `django_smart_filters/declarations.py` and `django_smart_filters/contracts.py`.
+- Isolate UI rendering behind template adapter resolution so query/state behavior remains unchanged across themes in `django_smart_filters/theme.py`.
 
 ## Layers
 
 **Public API Layer:**
-- Purpose: Expose stable top-level contracts to consumers.
+- Purpose: Expose stable extension and registry surface for consumers.
 - Location: `django_smart_filters/__init__.py`
-- Contains: Re-exports (`FilterSpec`, `QueryHook`, `WidgetHook`).
-- Depends on: `django_smart_filters/contracts.py`.
-- Used by: External adopters and tests importing package-level symbols.
+- Contains: Re-exported contracts and registry functions (`FilterComponent`, `FilterSpec`, hooks, register/resolve/clear).
+- Depends on: `django_smart_filters/contracts.py`, `django_smart_filters/registry.py`
+- Used by: App/admin code and docs snippets in `docs/extension_hooks.md`, `docs/examples.md`
 
-**Declaration & Validation Layer:**
-- Purpose: Convert class-style/fluent declarations into validated, collision-safe specs.
-- Location: `django_smart_filters/declarations.py`, `django_smart_filters/builder.py`, `django_smart_filters/params.py`, `django_smart_filters/validation.py`, `django_smart_filters/contracts.py`
-- Contains: `ClassFilterDeclaration`, `BuilderFilterDeclaration`, `Filter.field(...)` builder, param naming, `validate_filter_spec`, `FilterValidationError`.
-- Depends on: Dataclasses/typing plus internal contracts.
-- Used by: `django_smart_filters/admin.py` (`get_smart_filter_specs`) and unit tests in `tests/test_declarations.py`, `tests/test_validation.py`.
+**Declaration & Contract Layer:**
+- Purpose: Define and validate filter declarations before runtime.
+- Location: `django_smart_filters/contracts.py`, `django_smart_filters/declarations.py`, `django_smart_filters/builder.py`, `django_smart_filters/params.py`, `django_smart_filters/validation.py`, `django_smart_filters/registry.py`
+- Contains: Dataclass contracts (`FilterSpec`, declaration objects), fluent builder API, parameter naming rules, validation, component registry.
+- Depends on: Pure Python dataclasses/protocols and internal validation/registry modules.
+- Used by: `django_smart_filters/admin.py`, `django_smart_filters/query.py`, `django_smart_filters/state.py`
 
-**State & Query Execution Layer:**
-- Purpose: Parse GET params to normalized state and apply that state to querysets by filter kind.
-- Location: `django_smart_filters/state.py`, `django_smart_filters/query.py`
-- Contains: `parse_filter_state`, `serialize_filter_state`, `apply_filter_value`, `apply_filter_state`.
-- Depends on: `FilterSpec` + validation from `django_smart_filters/validation.py`; Django `QueryDict` in `state.py`.
-- Used by: `SmartFilterAdminMixin` in `django_smart_filters/admin.py`; tests in `tests/test_state.py`, `tests/test_query.py`.
+**Query/State Execution Layer:**
+- Purpose: Parse URL state and apply deterministic queryset filtering.
+- Location: `django_smart_filters/state.py`, `django_smart_filters/query.py`, `django_smart_filters/autocomplete.py`, `django_smart_filters/chips.py`
+- Contains: QueryDict parsing/serialization, kind-specific filter normalization and lookup mapping, paginated autocomplete search, active chip/reset URL mechanics.
+- Depends on: `FilterSpec` contract and validation.
+- Used by: `SmartFilterAdminMixin` request handlers in `django_smart_filters/admin.py`
 
 **Admin Integration Layer:**
-- Purpose: Plug smart filters into Django admin change list and expose autocomplete endpoint.
+- Purpose: Plug smart filters into Django admin changelist and custom endpoint lifecycle.
 - Location: `django_smart_filters/admin.py`
-- Contains: `SmartFilterAdminMixin` and helper methods for controls/chips/endpoint URLs.
-- Depends on: Declarations, state, query, chips, autocomplete modules.
-- Used by: Downstream `ModelAdmin` subclasses (demonstrated in `tests/test_admin_filters.py`, `tests/test_autocomplete_admin_endpoint.py`, `tests/test_autocomplete_ui.py`).
+- Contains: `get_queryset()` override, `changelist_view()` context assembly, autocomplete route/view registration, control view-model construction.
+- Depends on: Declaration, state, query, autocomplete, chips, and theme layers.
+- Used by: Consumer `ModelAdmin` classes that mix in `SmartFilterAdminMixin` (see patterns in `tests/test_admin_filters.py`).
 
-**UI Rendering & Frontend Behavior Layer:**
-- Purpose: Render filter controls and active chips, then progressively enhance autocomplete in browser.
-- Location: `django_smart_filters/templates/admin/django_smart_filters/*.html`, `django_smart_filters/static/django_smart_filters/autocomplete.js`
-- Contains: Control templates, chip templates, active-bar template, JS runtime with debounce/stale-response guard.
-- Depends on: Control/chip context produced in `django_smart_filters/admin.py`.
-- Used by: `render_smart_filter_controls` and `render_smart_filter_active_bar` in `django_smart_filters/admin.py`.
+**Presentation Adapter Layer:**
+- Purpose: Render controls/active bars through adapter-selected templates and frontend behavior.
+- Location: `django_smart_filters/theme.py`, `django_smart_filters/templates/admin/django_smart_filters/theme/default/*.html`, wrapper templates in `django_smart_filters/templates/admin/django_smart_filters/*.html`, JS in `django_smart_filters/static/django_smart_filters/autocomplete.js`
+- Contains: `ThemeAdapter` contract, default template mapping, control fragments, chip rendering, autocomplete runtime.
+- Depends on: Context produced by `SmartFilterAdminMixin`.
+- Used by: Django template loader during changelist rendering.
 
 ## Data Flow
 
-**Changelist Filtering Flow:**
+**Changelist Query Filtering Flow:**
 
-1. `SmartFilterAdminMixin.get_smart_filter_specs()` in `django_smart_filters/admin.py` normalizes declarations via `normalize_declarations(...)` in `django_smart_filters/declarations.py`.
-2. `parse_filter_state(...)` in `django_smart_filters/state.py` reads `request.GET` into deterministic state keyed by `FilterSpec.param_name`.
-3. `apply_filter_state(...)` in `django_smart_filters/query.py` applies each filter in declaration order to queryset.
-4. `SmartFilterAdminMixin.changelist_view(...)` in `django_smart_filters/admin.py` builds control dictionaries and chip dictionaries, then renders HTML snippets via templates in `django_smart_filters/templates/admin/django_smart_filters/`.
-5. Returned context is merged into admin changelist extra context; default admin template remains in use (`change_list_template is None` validated in `tests/test_admin_filters.py`).
+1. `SmartFilterAdminMixin.get_queryset()` in `django_smart_filters/admin.py` obtains base queryset via `get_smart_filter_base_queryset()`.
+2. Declarations are normalized to `FilterSpec` objects with `normalize_declarations()` in `django_smart_filters/declarations.py`.
+3. URL parameters are parsed into typed state with `parse_filter_state()` in `django_smart_filters/state.py`.
+4. Filter state is applied deterministically by spec order with `apply_filter_state()` in `django_smart_filters/query.py`.
+
+**Changelist UI Context Flow:**
+
+1. `SmartFilterAdminMixin.changelist_view()` in `django_smart_filters/admin.py` resolves adapter (`resolve_theme_adapter()`) and state (`parse_filter_state()`).
+2. `_build_filter_controls()` builds per-filter control models, including autocomplete metadata (`endpoint_url`, `min_query_length`, `page_size`).
+3. `build_active_filter_chips()` / `build_remove_one_url()` / `build_reset_all_url()` in `django_smart_filters/chips.py` generate active filter UX actions.
+4. `render_smart_filter_controls()` and `render_smart_filter_active_bar()` render adapter templates and inject HTML into changelist context.
 
 **Autocomplete Endpoint Flow:**
 
-1. `SmartFilterAdminMixin.get_urls()` in `django_smart_filters/admin.py` registers `smart-filters/autocomplete/` under admin route namespace.
-2. Browser JS in `django_smart_filters/static/django_smart_filters/autocomplete.js` issues GET requests with `field`, `query`, `page`, and `limit`.
-3. `smart_filter_autocomplete_view(...)` in `django_smart_filters/admin.py` resolves target spec, parses request with `parse_autocomplete_request(...)` in `django_smart_filters/autocomplete.py`, and excludes the active target field from scoped state.
-4. Base queryset is narrowed by remaining active filters via `apply_filter_state(...)` in `django_smart_filters/query.py`.
-5. `search_autocomplete_options(...)` in `django_smart_filters/autocomplete.py` returns paginated payload (`results`, `pagination`) consumed by JS.
+1. `get_urls()` in `django_smart_filters/admin.py` registers `smart-filters/autocomplete/` under model admin routes.
+2. `smart_filter_autocomplete_view()` resolves target autocomplete spec and rejects unknown/non-autocomplete fields with HTTP 400 JSON.
+3. Existing non-target state is parsed and applied (`parse_filter_state()` + `apply_filter_state()`) to scope autocomplete results.
+4. `parse_autocomplete_request()` validates query/page/limit in `django_smart_filters/autocomplete.py`, then `search_autocomplete_options()` returns paginated `{results, pagination}` payload.
 
 **State Management:**
-- Use URL query parameters as the source of truth (`request.GET`) in `django_smart_filters/state.py` and `django_smart_filters/admin.py`.
-- Keep canonical parameter naming through `resolve_param_name(...)` in `django_smart_filters/params.py`.
-- Preserve deterministic ordering and query-string rebuilding in `build_remove_one_url(...)` / `_querydict_to_querystring(...)` in `django_smart_filters/chips.py`.
+- Use URL as canonical state store through `parse_filter_state()` and `serialize_filter_state()` in `django_smart_filters/state.py`.
+- Keep ordering deterministic by iterating normalized specs, then serializing query params in stable sorted order for chip URLs in `django_smart_filters/chips.py`.
 
 ## Key Abstractions
 
-**FilterSpec Contract:**
-- Purpose: Canonical representation of one filter declaration.
-- Examples: `django_smart_filters/contracts.py`, constructed in `django_smart_filters/declarations.py` and `django_smart_filters/builder.py`.
-- Pattern: Immutable dataclass boundary (`@dataclass(frozen=True)`) passed across all modules.
+**Normalized Filter Contract (`FilterSpec`):**
+- Purpose: Single internal representation for every filter declaration style.
+- Examples: `django_smart_filters/contracts.py`, usage in `django_smart_filters/query.py`, `django_smart_filters/state.py`, `django_smart_filters/admin.py`
+- Pattern: Normalize early, validate once, consume everywhere.
 
-**Declaration APIs (Class + Fluent):**
-- Purpose: Provide two authoring styles that converge to identical specs.
-- Examples: `DropdownFilter(...)` in `django_smart_filters/declarations.py`, `Filter.field(...).dropdown()` in `django_smart_filters/builder.py`.
-- Pattern: Adapter normalization path (`normalize_class_declaration` and `normalize_builder_declaration`) validated in `tests/test_declarations.py`.
+**Declaration Styles (Class + Fluent):**
+- Purpose: Provide ergonomic authoring while preserving one normalization path.
+- Examples: `ClassFilterDeclaration` / `DropdownFilter` in `django_smart_filters/declarations.py`; fluent `Filter.field(...).<kind>()` in `django_smart_filters/builder.py`
+- Pattern: Route both styles through `normalize_class_declaration()` / `normalize_builder_declaration()` and then `normalize_declarations()`.
 
-**SmartFilterAdminMixin:**
-- Purpose: Non-invasive admin extension with queryset, context, and endpoint hooks.
-- Examples: `django_smart_filters/admin.py`.
-- Pattern: Mixin composition with overridable hooks (`get_smart_filter_declarations`, `get_smart_filter_base_queryset`, template path attributes).
+**Theme Adapter Contract (`ThemeAdapter`):**
+- Purpose: Separate template selection from filter semantics.
+- Examples: `django_smart_filters/theme.py`, defaults at `django_smart_filters/templates/admin/django_smart_filters/theme/default/*.html`
+- Pattern: Resolve adapter at runtime and render by template path, not hardcoded HTML.
+
+**Component Registry (`FilterComponent` + registry funcs):**
+- Purpose: Allow custom component key registration with fail-fast resolution.
+- Examples: `django_smart_filters/contracts.py`, `django_smart_filters/registry.py`, extension docs in `docs/extension_hooks.md`
+- Pattern: Register once by key, resolve during declaration normalization, reject duplicates/unknown keys immediately.
 
 ## Entry Points
 
-**Admin Mixin Entry Point:**
-- Location: `django_smart_filters/admin.py` (`SmartFilterAdminMixin`).
-- Triggers: Django admin calls `get_queryset`, `changelist_view`, `get_urls` on registered `ModelAdmin`.
-- Responsibilities: Normalize declarations, parse URL state, filter queryset, build UI context, register autocomplete route, serve autocomplete JSON.
+**Django Admin Runtime Entry Point:**
+- Location: `django_smart_filters/admin.py` (`SmartFilterAdminMixin`)
+- Triggers: Django admin changelist request and admin URL dispatch.
+- Responsibilities: Build specs/state, apply queryset filtering, add smart filter context/HTML, register and serve autocomplete endpoint.
 
 **Declaration Authoring Entry Points:**
-- Location: `django_smart_filters/declarations.py` (`DropdownFilter`), `django_smart_filters/builder.py` (`Filter.field`).
-- Triggers: Developer configures `smart_filters` list in `ModelAdmin` subclass.
-- Responsibilities: Produce declarations that normalize into valid `FilterSpec` objects.
+- Location: `django_smart_filters/declarations.py` (`DropdownFilter`, `ClassFilterDeclaration`) and `django_smart_filters/builder.py` (`Filter.field`)
+- Triggers: Consumer admin class configuration (`smart_filters = [...]`).
+- Responsibilities: Capture declaration intent and normalize to `FilterSpec`.
 
-**Package API Entry Point:**
-- Location: `django_smart_filters/__init__.py`.
-- Triggers: Consumer imports package-level contracts.
-- Responsibilities: Provide stable top-level exports.
+**Extension Registration Entry Point:**
+- Location: `django_smart_filters/registry.py` and re-exports in `django_smart_filters/__init__.py`
+- Triggers: App startup or module import where custom components are registered.
+- Responsibilities: Register, resolve, and clear component mappings.
 
 ## Error Handling
 
-**Strategy:** Fail fast at declaration normalization and request parsing boundaries; return structured HTTP 400 for invalid autocomplete requests.
+**Strategy:** Fail fast during normalization/validation and return explicit API errors for HTTP endpoints.
 
 **Patterns:**
-- Raise `FilterValidationError` from `django_smart_filters/validation.py` during spec validation in normalization path (`django_smart_filters/declarations.py`).
-- Raise `ValueError` for malformed runtime values in `django_smart_filters/state.py`, `django_smart_filters/query.py`, and `django_smart_filters/autocomplete.py`; convert to JSON 400 in `smart_filter_autocomplete_view(...)` in `django_smart_filters/admin.py`.
+- Raise `FilterValidationError` for invalid declarations or unsupported kinds in `django_smart_filters/validation.py` and declaration normalization in `django_smart_filters/declarations.py`.
+- Raise `ValueError` for malformed runtime values (boolean/numeric/date/autocomplete paging) in `django_smart_filters/state.py`, `django_smart_filters/query.py`, and `django_smart_filters/autocomplete.py`.
+- Convert endpoint-level validation failures to structured `JsonResponse(..., status=400)` in `smart_filter_autocomplete_view()` in `django_smart_filters/admin.py`.
 
 ## Cross-Cutting Concerns
 
-**Logging:** Not detected in `django_smart_filters/*.py`; add logging at admin boundary (`django_smart_filters/admin.py`) when introducing operational diagnostics.
-**Validation:** Centralized through `validate_filter_spec(...)` in `django_smart_filters/validation.py` and reused in `django_smart_filters/declarations.py`, `django_smart_filters/state.py`, `django_smart_filters/query.py`, `django_smart_filters/autocomplete.py`.
-**Authentication:** Delegate endpoint protection to Django admin wrapper in `get_urls()` via `self.admin_site.admin_view(...)` in `django_smart_filters/admin.py`.
+**Logging:** No dedicated logging layer detected in `django_smart_filters/*.py`.
+**Validation:** Centralized spec validation in `django_smart_filters/validation.py`, plus request/value validation in `django_smart_filters/state.py` and `django_smart_filters/autocomplete.py`.
+**Authentication:** Endpoint access is wrapped with `self.admin_site.admin_view(...)` in `django_smart_filters/admin.py`, relying on Django admin auth/permissions.
 
 ---
 
-*Architecture analysis: 2026-04-20*
+*Architecture analysis: 2026-04-21*

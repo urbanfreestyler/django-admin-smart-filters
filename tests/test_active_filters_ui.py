@@ -5,14 +5,15 @@ from urllib.parse import parse_qsl
 import pytest
 from django.http import QueryDict
 
-from django_smart_filters.builder import Filter
-from django_smart_filters.state import parse_filter_state
+from django_admin_smart_filters.builder import Filter
+from django_admin_smart_filters.state import parse_filter_state
 
-from django_smart_filters.chips import (
+from django_admin_smart_filters.chips import (
     build_active_filter_chips,
     build_remove_one_url,
     build_reset_all_url,
 )
+
 
 def _specs():
     return [
@@ -32,7 +33,9 @@ def test_chip_labels_are_human_readable_and_param_keys_are_hidden() -> None:
     specs = _specs()
     state = parse_filter_state(
         specs,
-        QueryDict("status=open&category__in=alpha&category__in=beta&score_min=10&score_max=20"),
+        QueryDict(
+            "status=open&category__in=alpha&category__in=beta&score_min=10&score_max=20"
+        ),
     )
 
     chips = build_active_filter_chips(
@@ -60,7 +63,9 @@ def test_remove_one_url_drops_target_chip_only_and_preserves_other_criteria() ->
     specs = _specs()
     query = QueryDict("status=open&category__in=alpha&category__in=beta&page=3")
     state = parse_filter_state(specs, query)
-    chips = build_active_filter_chips(specs, state, {"status": "Status", "category": "Category"})
+    chips = build_active_filter_chips(
+        specs, state, {"status": "Status", "category": "Category"}
+    )
 
     target = next(chip for chip in chips if chip["label"] == "Category: alpha")
     remove_url = build_remove_one_url(query, target)
@@ -80,7 +85,9 @@ def test_remove_one_flow_rebuilds_chip_state_without_targeted_chip() -> None:
     initial_chips = build_active_filter_chips(specs, initial_state, labels)
 
     target = next(chip for chip in initial_chips if chip["label"] == "Category: alpha")
-    next_state = parse_filter_state(specs, QueryDict(build_remove_one_url(initial_query, target).lstrip("?")))
+    next_state = parse_filter_state(
+        specs, QueryDict(build_remove_one_url(initial_query, target).lstrip("?"))
+    )
     next_chips = build_active_filter_chips(specs, next_state, labels)
 
     assert [chip["label"] for chip in next_chips] == ["Status: open", "Category: beta"]
@@ -136,11 +143,15 @@ def test_reset_all_flow_results_in_no_active_chips() -> None:
         ),
     ],
 )
-def test_remove_one_url_is_deterministic_for_mixed_filters(query: str, expected: list[tuple[str, str]]) -> None:
+def test_remove_one_url_is_deterministic_for_mixed_filters(
+    query: str, expected: list[tuple[str, str]]
+) -> None:
     specs = _specs()
     querydict = QueryDict(query)
     state = parse_filter_state(specs, querydict)
-    chips = build_active_filter_chips(specs, state, {"status": "Status", "category": "Category"})
+    chips = build_active_filter_chips(
+        specs, state, {"status": "Status", "category": "Category"}
+    )
 
     target = next(chip for chip in chips if chip["label"] == "Category: beta")
     assert _pairs(build_remove_one_url(querydict, target)) == expected

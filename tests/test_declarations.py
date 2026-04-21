@@ -1,15 +1,15 @@
 import pytest
 
-from django_smart_filters.builder import Filter
-from django_smart_filters.contracts import FilterSpec
-from django_smart_filters.declarations import (
+from django_admin_smart_filters.builder import Filter
+from django_admin_smart_filters.contracts import FilterSpec
+from django_admin_smart_filters.declarations import (
     ClassFilterDeclaration,
     DropdownFilter,
     normalize_class_declaration,
     normalize_declarations,
 )
-from django_smart_filters.params import resolve_param_name
-from django_smart_filters.validation import FilterValidationError
+from django_admin_smart_filters.params import resolve_param_name
+from django_admin_smart_filters.validation import FilterValidationError
 
 
 def test_param_name_deterministic_and_alias_override() -> None:
@@ -45,7 +45,11 @@ def test_mixed_declarations_preserve_order_and_remain_list_filter_friendly() -> 
     specs = normalize_declarations(declarations)
 
     assert [spec.field_name for spec in specs] == ["status", "category", "active"]
-    assert [spec.filter_kind for spec in specs] == ["dropdown", "autocomplete", "boolean_toggle"]
+    assert [spec.filter_kind for spec in specs] == [
+        "dropdown",
+        "autocomplete",
+        "boolean_toggle",
+    ]
 
 
 def test_normalize_declarations_fails_fast_for_unknown_component_key() -> None:
@@ -57,5 +61,7 @@ def test_normalize_declarations_fails_fast_for_unknown_component_key() -> None:
         )
     ]
 
-    with pytest.raises(FilterValidationError, match="Unknown filter component 'missing'"):
+    with pytest.raises(
+        FilterValidationError, match="Unknown filter component 'missing'"
+    ):
         normalize_declarations(declarations)

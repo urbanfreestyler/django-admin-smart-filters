@@ -1,215 +1,238 @@
 # Pitfalls Research
 
-**Domain:** Django admin filtering library (async autocomplete + theme compatibility)
-**Researched:** 2026-04-20
+**Domain:** First-release readiness for a Django reusable package (existing codebase, packaging + publication integration)
+**Researched:** 2026-04-21
 **Confidence:** HIGH
 
 ## Critical Pitfalls
 
-### Pitfall 1: Treating `autocomplete_fields` as a drop-in for changelist filters
+### Pitfall 1: Distribution name and import package drift during namespace rename
 
 **What goes wrong:**
-Teams assume Django’s built-in `ModelAdmin.autocomplete_fields` solves async filtering in `list_filter`. It does not map directly to custom sidebar filters, so implementation gets hacked late and API design collapses.
+Package uploads as one name, docs reference another, and users cannot import after install (`pip install` succeeds but `import ...` fails or docs are wrong).
 
 **Why it happens:**
-`autocomplete_fields` is well-documented and convenient, but it targets relation form widgets, while changelist filters are a separate API (`list_filter`, `SimpleListFilter`, `FieldListFilter`).
+Teams conflate distribution name (PyPI project) with import package name, especially during late rename work.
 
 **How to avoid:**
-- Define your own filter abstraction explicitly for changelist context (parameter parsing + queryset application + widget rendering).
-- Keep a clear contract: filter UI component ↔ query param schema ↔ queryset transformer.
-- Document that form autocomplete and changelist filter autocomplete are distinct integration points.
+- Freeze naming decisions before artifact build: distribution name, import path, and app label.
+- Add release smoke test that does: fresh venv install from wheel + `python -c "import django_admin_smart_filters"`.
+- Update install docs and examples from the same source of truth.
 
 **Warning signs:**
-- Team tries to wire `autocomplete_fields` into `list_filter` directly.
-- Filter prototype works in change form but not in changelist sidebar.
-- Query params become ad-hoc and inconsistent between filters.
+- README says one install command but tests import a different module.
+- Package name appears in multiple variants (`-`, `_`, old namespace) across docs/config.
+- Rename PRs touch code/docs but not release checks.
 
 **Phase to address:**
-Phase 1 (API/design foundation).
+Phase 1 (packaging metadata baseline) and Phase 2 (artifact validation).
 
 ---
 
-### Pitfall 2: Missing `search_fields` and permission boundaries for autocomplete endpoints
+### Pitfall 2: Templates/static files missing from wheel/sdist
 
 **What goes wrong:**
-Autocomplete fails, returns poor results, or leaks object visibility across admin users.
+Library works from repo checkout but installed package has missing admin templates/JS/CSS, causing runtime template-not-found or broken UI behavior.
 
 **Why it happens:**
-Django autocomplete requires `search_fields` on the related admin and enforces permission checks. Custom filter endpoints often skip equivalent checks.
+Python module files are included, but package data rules are incomplete/misconfigured.
 
 **How to avoid:**
-- Require searchable field configuration in your filter declaration.
-- Centralize request-scoped queryset authorization (`request.user` + model/object visibility).
-- Add tests for staff roles with different permissions.
+- Explicitly configure package data inclusion for `templates/` and `static/`.
+- Test both built artifacts (`sdist`, `wheel`), not just editable install.
+- Add CI assertion that artifact file list contains expected template/static paths.
 
 **Warning signs:**
-- 403/empty results for valid users.
-- Users can discover object labels they should not see.
-- Search behavior differs per model with no explicit config.
+- UI tests pass locally but fail after `pip install dist/*.whl`.
+- `TemplateDoesNotExist` appears only in installed-package tests.
+- Dist artifact size unexpectedly small after packaging changes.
 
 **Phase to address:**
-Phase 2 (server query + auth layer).
+Phase 2 (build and artifact integrity).
 
 ---
 
-### Pitfall 3: Unindexed `icontains` search on high-cardinality fields
+### Pitfall 3: Editable install masks packaging defects
 
 **What goes wrong:**
-Autocomplete and filter search become slow under realistic data volume.
+Release is shipped with missing files or bad metadata because validation only used `pip install -e .`.
 
 **Why it happens:**
-Django admin default search behavior uses `icontains` across `search_fields`; when fields aren’t indexed, query cost explodes.
+Editable mode reads directly from working tree and can hide distribution packaging errors.
 
 **How to avoid:**
-- Restrict default search fields to indexed columns.
-- Support custom search backends (`get_search_results()`-style hook) for large tables.
-- Add performance budgets (e.g., P95 response target for autocomplete).
+- Make wheel/sdist install smoke checks mandatory in CI.
+- Run smoke tests in clean environment without source tree on `PYTHONPATH`.
+- Gate release on built-artifact tests only.
 
 **Warning signs:**
-- Query plans show sequential scans on large tables.
-- Latency spikes once dataset crosses early thresholds.
-- DB CPU rises during typeahead usage.
+- Team repeatedly says “works in editable mode.”
+- No test stage that installs from `dist/` files.
+- Bugs reproduced only by downstream users, not maintainers.
 
 **Phase to address:**
-Phase 2 (query engine) and Phase 4 (scale hardening).
+Phase 2 (artifact validation) and Phase 3 (CI quality gates).
 
 ---
 
-### Pitfall 4: Expensive ordering + paginator `count()` on large datasets
+### Pitfall 4: Incomplete or misleading core metadata
 
 **What goes wrong:**
-Every filter interaction triggers expensive sort/count operations, creating multi-second admin delays.
+Users install incompatible versions or cannot evaluate project quality because `requires-python`, classifiers, project URLs, or license/readme metadata are wrong.
 
 **Why it happens:**
-Admin ordering can force costly sorts, and default paginator performs `count()`; both become painful at scale.
+Metadata is treated as “form-filling” instead of an install/runtime contract.
 
 **How to avoid:**
-- Use predictable indexed ordering defaults.
-- Provide optional paginator strategy for large tables.
-- Add benchmark fixtures with realistic row counts.
+- Validate `[project]` metadata fields as part of release checklist.
+- Align `requires-python` with tested matrix and documented support policy.
+- Ensure `readme` renders and URLs are valid.
 
 **Warning signs:**
-- Slow queries include sort on non-indexed columns.
-- `COUNT(*)` dominates request time.
-- “Works in dev, unusable in production” reports from ops users.
+- CI matrix and `requires-python` disagree.
+- Missing/placeholder project URLs.
+- PyPI page rendering issues after test upload.
 
 **Phase to address:**
-Phase 4 (performance/scalability).
+Phase 1 (metadata baseline) and Phase 4 (publication rehearsal).
 
 ---
 
-### Pitfall 5: Query explosion from facets and filter choice generation
+### Pitfall 5: Version source ambiguity (multiple truths)
 
 **What goes wrong:**
-Enabling richer filter UX (counts/facets/many related choices) unexpectedly multiplies DB queries.
+Tag, changelog, package metadata, and module `__version__` disagree; wrong version gets published or tagged.
 
 **Why it happens:**
-Django notes that facet counts increase queries with number of filters. Custom filter libraries often add extra count/metadata queries per control.
+No single-source version policy before first release automation.
 
 **How to avoid:**
-- Keep facets opt-in, not always-on.
-- Cache cheap metadata per request when possible.
-- Expose per-filter toggles for count badges.
+- Declare one version authority (static in `pyproject.toml` or controlled dynamic source).
+- Add CI guard that version in artifacts matches release tag intent.
+- Include pre-release check for changelog/version coherence.
 
 **Warning signs:**
-- Query count scales linearly with number of visible filters.
-- Changelist loads are much slower when facets are enabled.
-- APM traces show many small repetitive count queries.
+- Release PR includes manual updates in 2–4 places.
+- Maintainers ask “which version is canonical?”
+- Built filename version differs from release notes draft.
 
 **Phase to address:**
-Phase 3 (UX features) and Phase 4 (perf guardrails).
+Phase 1 (versioning baseline) and Phase 3 (release gate automation).
 
 ---
 
-### Pitfall 6: Widget conflict matrix ignored (`formfield_overrides` vs relation widgets)
+### Pitfall 6: Runtime dependency leakage from dev environment
 
 **What goes wrong:**
-Custom widgets silently fail or render inconsistently when fields are also in `raw_id_fields`, `radio_fields`, or `autocomplete_fields`.
+Package imports pass in development but fail for users because transitive dev-only dependencies were never declared in runtime dependencies.
 
 **Why it happens:**
-Django relation widget selection has explicit precedence rules; many libraries ignore those rules and assume widget override always wins.
+Local env contains extra packages from test/lint tooling; release artifacts are never tested in minimal env.
 
 **How to avoid:**
-- Validate configuration conflicts at startup.
-- Emit explicit errors when incompatible options are combined.
-- Document precedence in extension API.
+- Separate runtime vs dev dependencies strictly.
+- Smoke-test import and minimal usage in fresh env with only installed artifact dependencies.
+- Add negative test to ensure optional features fail with clear message unless extras installed.
 
 **Warning signs:**
-- Widget appears in one admin screen and not another.
-- CSS/JS loads but control type remains default.
-- Support issues around “override not applied.”
+- `ModuleNotFoundError` reported by users for packages not in runtime deps.
+- Requirements files differ from declared package dependencies.
+- Tests only run in one pre-loaded dev container.
 
 **Phase to address:**
-Phase 1 (config model) and Phase 2 (adapter implementation).
+Phase 2 (artifact smoke tests) and Phase 3 (CI matrix hardening).
 
 ---
 
-### Pitfall 7: JavaScript integration that bypasses admin conventions
+### Pitfall 7: Build isolation and reproducibility not enforced
 
 **What goes wrong:**
-Autocomplete/filter JS works in isolation but breaks in admin pages, especially with third-party admin themes.
+Release builds pass on maintainer machine but fail in CI or for downstream rebuilds due to undeclared build requirements or environment-sensitive outputs.
 
 **Why it happens:**
-Django admin uses namespaced `django.jQuery`; widgets depending on jQuery need `admin/js/jquery.init.js`; template overrides that omit `{{ block.super }}` break core admin scripts.
+Build backend/tooling assumptions are implicit; reproducibility controls are not tested.
 
 **How to avoid:**
-- Provide a single asset-loading strategy compatible with admin media API.
-- Use `django.jQuery` by default in admin context.
-- In docs/examples, always include `{{ block.super }}` in overridden admin blocks.
+- Use standards-compliant isolated builds (`python -m build`) in CI.
+- Keep `[build-system]` explicit and minimal.
+- Rebuild artifacts in clean runner and compare expected structure/checks.
 
 **Warning signs:**
-- “`$` is undefined” or duplicate jQuery conflicts.
-- Filter UI disappears only in customized admin templates.
-- Regressions after enabling a custom admin theme/app.
+- “Works on my machine” build failures.
+- Missing build dependency errors in CI only.
+- Artifact contents vary unexpectedly between runs.
 
 **Phase to address:**
-Phase 2 (frontend behavior layer) and Phase 5 (compatibility QA).
+Phase 2 (build pipeline) and Phase 3 (CI reproducibility checks).
 
 ---
 
-### Pitfall 8: Theme coupling via hardcoded CSS/selectors
+### Pitfall 8: Upload credentials and release auth model are insecure
 
 **What goes wrong:**
-Controls look correct in stock admin but break in dark mode or in theme adapters (spacing, contrast, dropdown alignment).
+Long-lived PyPI tokens are over-scoped, leaked, or manually pasted; compromise risk is high for first automation setup.
 
 **Why it happens:**
-Library CSS is authored against one DOM/CSS assumption instead of Django’s variable-based theming and template extension points.
+Teams optimize for speed and skip trusted publishing/OIDC setup.
 
 **How to avoid:**
-- Build styling tokens around Django admin CSS variables.
-- Test both light/dark mode and at least one non-default admin skin.
-- Ship adapter hooks for class names/templates instead of hardcoding selectors.
+- Prefer PyPI Trusted Publishing (OIDC) for CI release jobs.
+- If tokens are temporarily required, scope minimally and rotate.
+- Prohibit token use in local scripts/docs examples.
 
 **Warning signs:**
-- Low contrast in dark mode.
-- Dropdown widths/positions wrong in themed admins.
-- Frequent CSS hotfixes per consumer project.
+- Tokens stored in plaintext docs or repository secrets with broad scope.
+- Manual maintainer uploads as default path.
+- No documented auth rotation/revocation process.
 
 **Phase to address:**
-Phase 3 (theming/adapters) and Phase 5 (cross-theme verification).
+Phase 4 (publication security and auth).
 
 ---
 
-### Pitfall 9: Shared mutable state in dynamic admin hooks
+### Pitfall 9: No TestPyPI rehearsal, then immutable release collision
 
 **What goes wrong:**
-Filter behavior changes across requests/users (duplicate fields, drifting config, nondeterministic UI).
+First upload fails late (bad metadata, broken README, existing file/version conflicts). Team burns release number and scrambles.
 
 **Why it happens:**
-Code mutates class-level lists/tuples in request-time hooks (`get_*` methods), causing cumulative side effects.
+PyPI release immutability constraints not rehearsed with full artifact flow.
 
 **How to avoid:**
-- Treat class attributes as immutable.
-- Return copied structures from dynamic hooks.
-- Add regression tests for repeated requests with mixed user roles.
+- Run full dry-run on TestPyPI before production publish.
+- Add `twine check` and artifact install verification before upload.
+- Treat version number as immutable once publish job starts.
 
 **Warning signs:**
-- Duplicate filters/options appear after several requests.
-- Behavior differs between first and subsequent page loads.
-- Issues only reproducible on long-running processes.
+- First real PyPI publish is first time upload flow is executed.
+- No documented fallback when upload partially fails.
+- Release checklist has no TestPyPI step.
 
 **Phase to address:**
-Phase 2 (hook implementation discipline).
+Phase 4 (publication rehearsal).
+
+---
+
+### Pitfall 10: Missing post-release correction path (yank policy)
+
+**What goes wrong:**
+Broken release remains active too long because maintainers have no agreed response (yank, follow-up patch, communication plan).
+
+**Why it happens:**
+Teams plan happy-path release only, not failure containment.
+
+**How to avoid:**
+- Define explicit incident runbook: detect → decide yank → patch release.
+- Document yanking criteria (broken/uninstallable/security).
+- Add communication template for release notes/issues.
+
+**Warning signs:**
+- Maintainers debate process during incident.
+- No one knows who can yank releases.
+- Broken version remains current for hours/days.
+
+**Phase to address:**
+Phase 5 (release operations + post-release governance).
 
 ---
 
@@ -217,81 +240,92 @@ Phase 2 (hook implementation discipline).
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Hardcode query param names per widget | Fast prototype | Breaking changes when adding composite filters | Only in throwaway spike |
-| Inline JS/CSS in templates | Quick visual demo | Theme incompatibility and hard maintenance | Never for library release |
-| Global jQuery assumptions (`$`) | Reuse old snippets | Conflicts with admin namespace and plugins | Never in admin package |
-| Always-on facet/count queries | Rich UI quickly | DB query explosion on large datasets | Only behind explicit feature flag |
+| “We’ll package files later” (no explicit data-file rules) | Faster milestone close | Installed package breaks in production | Never for release milestone |
+| Manual one-off release commands | Fast first publish | Non-reproducible process, bus-factor risk | Only for internal pre-release smoke |
+| Reusing broad personal API token in CI | Easy setup | High account/project compromise blast radius | Never; migrate to trusted publishing |
+| Skipping TestPyPI rehearsal | Saves one step | First real publish becomes integration test | Never for first public release |
 
 ## Integration Gotchas
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Django admin media | Loading scripts manually in random templates | Use `ModelAdmin`/widget media consistently and include required admin init assets |
-| Select2 behavior | Assuming dropdown placement always correct | Keep dropdown anchoring configurable in adapters; test in constrained containers/modals |
-| Admin theme overrides | Replacing base blocks without `block.super` | Preserve parent block content and layer custom assets/styles on top |
+| Build backend (`pyproject.toml`) | Undeclared/implicit build requirements | Keep `[build-system]` explicit and validated in isolated CI builds |
+| Django reusable app packaging | Forgetting to include templates/static in artifacts | Add explicit package-data rules and artifact-content checks |
+| PyPI upload | Direct production upload without `twine check`/dry-run | Use TestPyPI rehearsal + metadata rendering check + install smoke tests |
+| CI release auth | Long-lived API token secrets | Use Trusted Publishing (OIDC) and short-lived credentials |
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Unindexed `icontains` autocomplete | Slow typing feedback, DB CPU spikes | Indexed search fields + custom search backend hook | Usually noticeable at 100k+ rows |
-| Default paginator `count()` on huge tables | Long TTFB even before data renders | Optional large-table paginator/count strategy | Usually noticeable at 1M+ rows |
-| Always-on facets across many filters | Sudden rise in query count | Make facets opt-in per filter/admin | Noticeable with 6+ filters on large datasets |
+| Full test suite only after upload step | Slow feedback, late failures | Reorder pipeline: lint/type/test/build/check before publish | Any project; painful on first release |
+| Rebuilding environment per job without cache strategy | Long release pipeline timeouts | Use deterministic lock/constraints + CI caching policy | Moderate-to-large CI matrices |
+| Re-running heavyweight integration tests for docs-only release PRs | Release prep drags | Use path-based CI job selection while preserving release gate jobs | As repo/test surface grows |
 
 ## Security Mistakes
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Returning autocomplete data without request-scoped permission filters | Unauthorized data disclosure | Enforce model/object visibility checks in one shared query service |
-| Exposing sensitive fields in search labels/results | Information leakage via typeahead | Explicitly whitelist display/search fields |
-| Trusting client-provided filter params without validation | Unexpected queryset broadening and info exposure | Strict parameter schema + server-side coercion |
+| Storing PyPI token in plaintext or shell history | Account/package takeover | Use CI secret store + non-interactive upload flow or OIDC trusted publishing |
+| Over-scoped credentials across multiple projects | Cross-project blast radius | Scope creds to project/repository and rotate on schedule |
+| Missing 2FA/recovery setup for maintainers | Maintainer lockout or account hijack risk | Enforce maintainer account hygiene and backup owner policy |
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Autocomplete with no loading/error states | Users think filter is broken | Add loading, empty, and retry states |
-| Inconsistent filter param persistence | Users lose context after edits | Preserve and normalize query params across changelist actions |
-| One-size-fits-all filter widgets | Poor usability on high-cardinality fields | Adaptive widget selection (choices vs async autocomplete) |
+| Sparse install docs for reusable app | New users fail first setup | Publish explicit install + `INSTALLED_APPS` + minimal integration snippet |
+| Changelog not aligned with release contents | Users cannot assess upgrade risk | Keep changelog section tied to artifact version before publish |
+| Hidden compatibility policy | Consumers choose unsupported Python/Django combos | Put support matrix in README and classifiers/requires-python |
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Async autocomplete:** Works with permission-restricted staff users, not just superuser.
-- [ ] **Performance:** P95 latency tested with realistic high-cardinality data.
-- [ ] **Theme compatibility:** Verified in light + dark mode and at least one non-default admin theme.
-- [ ] **Filter persistence:** Query params survive add/edit/delete round-trips correctly.
-- [ ] **JS resilience:** No duplicate jQuery, no `$` global dependency, no missing `block.super` regressions.
+- [ ] **Metadata complete:** `name`, `version`, `requires-python`, license, URLs, classifiers align with tested policy.
+- [ ] **Artifact integrity:** wheel and sdist both contain Python modules + templates + static assets.
+- [ ] **Install smoke checks:** clean venv install from wheel and sdist, then import and minimal admin integration pass.
+- [ ] **Upload rehearsal:** `twine check` passes and TestPyPI dry-run has been validated.
+- [ ] **Auth hardening:** trusted publishing configured (or temporary scoped token plan documented).
+- [ ] **Recovery path:** yank/patch process documented with owners and triggers.
 
 ## Recovery Strategies
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Wrong abstraction (`autocomplete_fields` misuse) | HIGH | Introduce dedicated filter abstraction; ship migration layer for old API |
-| Query performance collapse | MEDIUM-HIGH | Add indexes, narrow search fields, custom search backend, optional paginator strategy |
-| Theme breakage across consumers | MEDIUM | Move to tokenized CSS vars and adapter templates; add visual regression tests |
-| Permission leak in autocomplete | HIGH | Patch endpoint checks immediately, rotate logs/review access, add role-based tests |
+| Missing package data in release | HIGH | Yank broken release, patch file-inclusion config, rebuild, republish with new version |
+| Name/import mismatch | HIGH | Update docs + metadata + import path shims if needed, cut corrective release |
+| Bad metadata/readme on PyPI | MEDIUM | Fix metadata source, verify with `twine check`, publish next patch release |
+| Credential exposure | HIGH | Revoke credential immediately, rotate secrets, audit recent uploads, migrate to OIDC |
+| Broken compatibility declaration | MEDIUM-HIGH | Correct `requires-python`/classifiers, publish fixed release, note incompatibility in changelog |
 
 ## Pitfall-to-Phase Mapping
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| `autocomplete_fields` misuse for changelist | Phase 1 | API docs and tests show separate changelist filter abstraction |
-| Missing search/auth boundaries | Phase 2 | Role-based endpoint tests + forbidden-object probes |
-| Unindexed search/perf collapse | Phase 2 & 4 | Benchmark suite with large fixtures passes latency budget |
-| Expensive ordering/paginator count | Phase 4 | Query plans + APM traces show acceptable cost |
-| Facet/query explosion | Phase 3 & 4 | Query-count regression tests with facets on/off |
-| Widget conflict matrix | Phase 1 & 2 | Startup config validation catches incompatible settings |
-| JS/admin integration drift | Phase 2 & 5 | End-to-end tests in stock + themed admin environments |
-| Theme coupling | Phase 3 & 5 | Visual QA matrix (light/dark/custom theme) |
-| Shared mutable hook state | Phase 2 | Repeated-request tests remain deterministic |
+| Name/import drift | Phase 1 + 2 | Install/import smoke tests from built artifacts pass |
+| Missing templates/static in artifacts | Phase 2 | Artifact file-list assertions + runtime template load tests pass |
+| Editable-install masking defects | Phase 2 + 3 | CI gates install from wheel/sdist only for release checks |
+| Incomplete metadata | Phase 1 + 4 | Metadata checklist + `twine check` + TestPyPI rendering verification |
+| Version source ambiguity | Phase 1 + 3 | Version consistency checks across tag/artifact/changelog pass |
+| Runtime dependency leakage | Phase 2 + 3 | Fresh-env smoke tests pass with only declared runtime deps |
+| Non-reproducible builds | Phase 2 + 3 | Isolated `python -m build` in CI is deterministic and green |
+| Insecure upload auth | Phase 4 | Trusted publishing workflow succeeds without long-lived token |
+| No publish rehearsal | Phase 4 | TestPyPI dry-run and install verification completed before prod publish |
+| No yank runbook | Phase 5 | Incident drill/checklist exists and ownership assigned |
 
 ## Sources
 
-- Django admin reference (5.2): `autocomplete_fields`, `search_fields`, `get_search_results`, paginator/order/facets/theming/media/jQuery — https://docs.djangoproject.com/en/5.2/ref/contrib/admin/ (**HIGH**)
-- Django admin list filters (5.2): filter API surface and customization points — https://docs.djangoproject.com/en/5.2/ref/contrib/admin/filters/ (**HIGH**)
-- Django admin JavaScript customization guidance (block inheritance and `block.super`) — https://docs.djangoproject.com/en/5.2/ref/contrib/admin/javascript/ (**HIGH**)
-- Select2 troubleshooting (dropdown attachment issues in constrained containers) — https://select2.org/troubleshooting/common-problems (**MEDIUM**, external to Django but relevant to Select2-based widgets)
+- Python Packaging User Guide — Packaging projects tutorial (build/upload/install flow): https://packaging.python.org/en/latest/tutorials/packaging-projects/ (**HIGH**)
+- Python Packaging User Guide — Writing `pyproject.toml` (metadata/build-system requirements): https://packaging.python.org/en/latest/guides/writing-pyproject-toml/ (**HIGH**)
+- Python Packaging spec — Names and normalization (distribution naming behavior): https://packaging.python.org/en/latest/specifications/name-normalization/ (**HIGH**)
+- Django docs — Reusable app packaging guidance (including static/templates packaging concerns): https://docs.djangoproject.com/en/6.0/intro/reusable-apps/ (**HIGH**)
+- PyPA build docs (isolated, standards-compliant build frontend behavior): https://build.pypa.io/en/latest/ (**HIGH**)
+- Twine docs (`twine check`, upload workflow, non-interactive CI options): https://twine.readthedocs.io/en/latest/ (**HIGH**)
+- PyPI docs — Trusted Publishers (OIDC model and security properties): https://docs.pypi.org/trusted-publishers/ (**HIGH**)
+- PyPI docs — Yanking releases (non-destructive rollback path): https://docs.pypi.org/project-management/yanking/ (**HIGH**)
+- PyPI docs — Project metadata presentation/verification semantics: https://docs.pypi.org/project_metadata/ (**MEDIUM**; display-focused but relevant to release metadata quality)
+- Setuptools data files guide (common file inclusion failure modes): https://setuptools.pypa.io/en/latest/userguide/datafiles.html (**HIGH**)
+- Hatch build configuration (file-selection and build config pitfalls if hatchling is used): https://hatch.pypa.io/latest/config/build/ (**MEDIUM**; backend-specific)
 
 ---
-*Pitfalls research for: Django admin filtering library*
-*Researched: 2026-04-20*
+*Pitfalls research for: Django Smart Filters release-readiness milestone*
+*Researched: 2026-04-21*

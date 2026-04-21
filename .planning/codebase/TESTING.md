@@ -1,176 +1,157 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-04-20
+**Analysis Date:** 2026-04-21
 
 ## Test Framework
 
 **Runner:**
-- `pytest` (version pinned in environment cache artifacts as `pytest-9.0.3` via files like `tests/__pycache__/test_query.cpython-312-pytest-9.0.3.pyc`)
-- Config: Not detected (`pytest.ini`, `pyproject.toml`, `tox.ini`, and `conftest.py` are not present at `C:\Projects\django-admin-smart-filters`)
+- pytest (version not pinned in repository files)
+- Config: Not detected (`pytest.ini`, `pyproject.toml`, `setup.cfg`, `tox.ini` absent in project root)
 
 **Assertion Library:**
-- Built-in `pytest` assertions and exception matching (`assert ...`, `pytest.raises(...)`) in `tests/test_query.py` and `tests/test_validation.py`.
+- Native `assert` statements via pytest in `tests/*.py`
 
 **Run Commands:**
 ```bash
-pytest                      # Run all tests from repository root
-pytest -k autocomplete      # Run focused subset by keyword
-pytest --maxfail=1 -q       # Fast local feedback
+python -m pytest tests                       # Run all tests
+python -m pytest tests -x                    # Stop on first failure
+python -m pytest tests -q                    # Quiet output
 ```
 
 ## Test File Organization
 
 **Location:**
-- Use separate test directory pattern: all tests live under `tests/`.
-- Library code under test lives under `django_smart_filters/`.
+- Separate test directory: `tests/`
 
 **Naming:**
-- Use `test_*.py` module naming, for example `tests/test_state.py`, `tests/test_admin_filters.py`, and `tests/test_autocomplete_ui.py`.
-- Use test function names in `test_<behavior>_<expected_result>` style, for example `test_parse_multiselect_from_repeated_and_csv_values_stable_order` in `tests/test_state.py`.
+- Files use `test_*.py` (examples: `tests/test_query.py`, `tests/test_autocomplete_admin_endpoint.py`)
+- Test functions use `test_*` naming with behavior-focused descriptions.
 
 **Structure:**
 ```
 tests/
-  test_declarations.py
-  test_validation.py
-  test_state.py
-  test_query.py
-  test_admin_filters.py
-  test_active_filters_ui.py
-  test_autocomplete.py
-  test_autocomplete_admin_endpoint.py
-  test_autocomplete_ui.py
+├── test_declarations.py
+├── test_validation.py
+├── test_state.py
+├── test_query.py
+├── test_admin_filters.py
+├── test_autocomplete.py
+├── test_autocomplete_admin_endpoint.py
+├── test_autocomplete_ui.py
+├── test_theme_adapters.py
+├── test_extension_registry.py
+└── test_docs_examples.py
 ```
 
 ## Test Structure
 
 **Suite Organization:**
 ```python
-# Pattern from `tests/test_query.py`
-class RecordingQuerySet:
-    def filter(self, **kwargs: object) -> "RecordingQuerySet":
-        ...
-
-def _specs() -> list[FilterSpec]:
+def _specs():
     return [
         Filter.field("status").dropdown().to_spec(),
         Filter.field("category").multi_select().to_spec(),
     ]
 
-def test_dropdown_applies_equality_lookup() -> None:
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("true", True), ("false", False)],
+)
+def test_boolean_toggle_maps_true_false_consistently(raw, expected):
     queryset = RecordingQuerySet()
-    spec = Filter.field("status").dropdown().to_spec()
-    updated = apply_filter_value(queryset, spec, "open")
-    assert updated.calls == [{"status": "open"}]
+    spec = Filter.field("active").boolean_toggle().to_spec()
+    updated = apply_filter_value(queryset, spec, raw)
+    assert updated.calls == [{"active": expected}]
 ```
 
 **Patterns:**
-- Setup pattern:
-  - Use local lightweight fakes/stubs inside each module (`RecordingQuerySet` in `tests/test_query.py`, `InMemoryQuerySet` in `tests/test_autocomplete_admin_endpoint.py`).
-  - Build common filter specs through helper functions (`_specs` in `tests/test_state.py`, `_all_filter_declarations` in `tests/test_admin_filters.py`).
-- Teardown pattern:
-  - No explicit teardown fixtures; tests rely on function isolation and immutable/local data.
-- Assertion pattern:
-  - Assert exact deterministic structures (lists of filter calls, JSON payload keys, query param pairs) rather than partial truthiness, e.g. `tests/test_active_filters_ui.py` and `tests/test_autocomplete_admin_endpoint.py`.
+- Setup pattern: helper builders/factories inside test modules (`_make_admin`, `_specs`, `_all_filter_declarations`) in `tests/test_admin_filters.py`, `tests/test_state.py`.
+- Teardown pattern: explicit registry cleanup when global state is touched (`clear_filter_component_registry()` in `tests/test_extension_registry.py` and `tests/test_docs_examples.py`).
+- Assertion pattern: full-structure equality assertions for deterministic behavior (`queryset.calls == [...]` in `tests/test_query.py`; payload key-set checks in `tests/test_autocomplete_admin_endpoint.py`).
 
 ## Mocking
 
 **Framework:**
-- No dedicated mocking library detected (no `unittest.mock` or external mock helpers used).
+- Custom in-memory fakes/stubs (no `unittest.mock`/`pytest-mock` usage detected)
 
 **Patterns:**
 ```python
-# Pattern from `tests/test_autocomplete_admin_endpoint.py`
+class RecordingQuerySet:
+    def __init__(self, calls=None):
+        self.calls = calls or []
+
+    def filter(self, **kwargs):
+        return RecordingQuerySet(self.calls + [kwargs])
+```
+
+```python
 class InMemoryQuerySet:
-    def filter(self, **kwargs: object) -> "InMemoryQuerySet":
+    def filter(self, **kwargs):
         ...
-
-    def order_by(self, *fields: str) -> "InMemoryQuerySet":
+    def order_by(self, *fields):
         ...
-
-    def values_list(self, *fields: str):
-        return [tuple(row[field] for field in fields) for row in self._rows]
-
-class EndpointAdmin(SmartFilterAdminMixin, _BaseSmartAdmin):
-    smart_filters = [
-        Filter.field("status").dropdown(),
-        Filter.field("category").autocomplete(),
-    ]
+    def values_list(self, *fields):
+        ...
 ```
 
 **What to Mock:**
-- Mock queryset behavior with small in-memory classes for deterministic filter/search behavior (`tests/test_query.py`, `tests/test_autocomplete.py`, `tests/test_autocomplete_admin_endpoint.py`).
-- Mock admin request context using `RequestFactory` for `get_queryset`, `changelist_view`, and custom endpoint tests (`tests/test_admin_filters.py`, `tests/test_autocomplete_admin_endpoint.py`).
+- QuerySet behavior via lightweight doubles (`RecordingQuerySet` in `tests/test_query.py`, `InMemoryQuerySet` in `tests/test_autocomplete_admin_endpoint.py`).
+- Admin superclass seams via local base admin classes (`_BaseSmartAdmin` in `tests/test_admin_filters.py`, `tests/test_theme_adapters.py`).
 
 **What NOT to Mock:**
-- Do not mock normalization/parsing functions under test; pass raw inputs and assert normalized output (`tests/test_state.py`, `tests/test_query.py`).
-- Do not mock template rendering for UI payload contract checks; render real templates via `render_to_string` (`tests/test_autocomplete_ui.py`).
+- Core normalization/validation functions (`parse_filter_state`, `apply_filter_state`, `normalize_declarations`) are tested directly.
+- Template rendering is exercised with real `render_to_string` calls in `tests/test_autocomplete_ui.py`.
 
 ## Fixtures and Factories
 
 **Test Data:**
 ```python
-# Pattern from `tests/test_admin_filters.py`
-@pytest.mark.parametrize(
-    ("data", "expected_calls"),
-    [
-        ({"status": "open"}, [{"status": "open"}]),
-        ({"active": "true"}, [{"active": True}]),
-    ],
-)
-def test_each_built_in_kind_filters_queryset_from_get_params(data, expected_calls) -> None:
-    ...
+dataset = [
+    {"pk": 1, "status": "open", "category": "Alpha"},
+    {"pk": 2, "status": "open", "category": "Alpine"},
+    {"pk": 3, "status": "closed", "category": "Alpha"},
+]
 ```
 
 **Location:**
-- Inline module helpers and local factories are used instead of shared fixture files:
-  - `_make_admin` in `tests/test_admin_filters.py` and `tests/test_autocomplete_admin_endpoint.py`
-  - `_pairs` in `tests/test_active_filters_ui.py`
-  - `_spec` in `tests/test_autocomplete.py`
+- Inline per-module fixtures/helpers in each `tests/test_*.py` file.
+- No shared `tests/conftest.py` detected.
 
 ## Coverage
 
-**Requirements:**
-- None enforced (no coverage configuration file detected and no coverage threshold config detected).
+**Requirements:** None enforced (no coverage config or threshold files detected)
 
 **View Coverage:**
 ```bash
-pytest --cov=django_smart_filters --cov-report=term-missing
+Not configured in repository (no coverage tool config detected)
 ```
 
 ## Test Types
 
 **Unit Tests:**
-- Pure-function normalization/validation/state/query tests dominate (`tests/test_validation.py`, `tests/test_declarations.py`, `tests/test_state.py`, `tests/test_query.py`, `tests/test_autocomplete.py`).
+- Pure-function and normalization tests in `tests/test_state.py`, `tests/test_query.py`, `tests/test_validation.py`, `tests/test_declarations.py`.
 
 **Integration Tests:**
-- Django admin integration tests instantiate `ModelAdmin` subclasses and drive requests with `RequestFactory` (`tests/test_admin_filters.py`, `tests/test_autocomplete_admin_endpoint.py`, `tests/test_autocomplete_ui.py`).
+- Django admin integration with `RequestFactory`, `ModelAdmin`, template rendering, and JSON responses in `tests/test_admin_filters.py`, `tests/test_autocomplete_admin_endpoint.py`, `tests/test_theme_adapters.py`, `tests/test_autocomplete_ui.py`.
 
 **E2E Tests:**
-- Not used (no browser automation framework files detected).
+- Not used (no browser automation framework detected).
 
 ## Common Patterns
 
 **Async Testing:**
 ```python
-# Current pattern is synchronous endpoint/function testing
-response = admin_instance.smart_filter_autocomplete_view(request)
-payload = json.loads(response.content.decode("utf-8"))
-assert response.status_code == 200
+# No async test functions detected; autocomplete UI behavior is validated
+# via deterministic string/assertion checks in JS and HTML output.
 ```
-Used in `tests/test_autocomplete_admin_endpoint.py`; no async test runner markers are present.
 
 **Error Testing:**
 ```python
-# Pattern from `tests/test_validation.py`
-with pytest.raises(FilterValidationError, match="collision"):
-    normalize_declarations(declarations)
-
-# Pattern from `tests/test_query.py`
-with pytest.raises(ValueError, match="Invalid boolean value"):
-    apply_filter_value(queryset, spec, "definitely")
+with pytest.raises(ValueError, match="Invalid page"):
+    parse_autocomplete_request(spec, {"query": "alpha", "page": "0"})
 ```
 
 ---
 
-*Testing analysis: 2026-04-20*
+*Testing analysis: 2026-04-21*

@@ -1,68 +1,66 @@
 # Technology Stack
 
-**Analysis Date:** 2026-04-20
+**Analysis Date:** 2026-04-21
 
 ## Languages
 
 **Primary:**
-- Python 3.x (exact runtime version not pinned in repo) - Library and tests in `django_smart_filters/*.py` and `tests/*.py`
+- Python (version not pinned in repo) - library runtime and core implementation in `django_smart_filters/*.py`.
 
 **Secondary:**
-- HTML (Django templates) - Admin UI rendering in `django_smart_filters/templates/admin/django_smart_filters/*.html`
-- JavaScript (vanilla browser JS) - Client autocomplete behavior in `django_smart_filters/static/django_smart_filters/autocomplete.js`
+- JavaScript (vanilla browser JS; version not pinned) - progressive enhancement for autocomplete in `django_smart_filters/static/django_smart_filters/autocomplete.js`.
+- Django template language - admin UI rendering in `django_smart_filters/templates/admin/django_smart_filters/**/*.html`.
 
 ## Runtime
 
 **Environment:**
-- Python + Django runtime (project is a reusable Django package; no standalone server entrypoint detected)
+- Python runtime (exact version not detected; no `pyproject.toml`, `requirements*.txt`, or `setup.py` present).
+- Browser runtime for admin JS behavior in `django_smart_filters/static/django_smart_filters/autocomplete.js`.
 
 **Package Manager:**
-- pip/setuptools workflow implied by Python package layout
-- Version: Not detected
-- Lockfile: missing (no `requirements*.txt`, `pyproject.toml`, `Pipfile`, or lockfile detected at repo root)
+- Not detected (no `pyproject.toml`/Poetry/Pipenv/requirements manifest committed).
+- Lockfile: missing (not detected).
 
 ## Frameworks
 
 **Core:**
-- Django (version not pinned in repository manifests) - Admin integration and HTTP/templating APIs used in `django_smart_filters/admin.py`
+- Django (version not pinned in repository manifests) - admin integration via `SmartFilterAdminMixin` in `django_smart_filters/admin.py` and HTTP/template primitives (`django.http`, `django.template.loader`, `django.urls`).
 
 **Testing:**
-- pytest (imported in `tests/test_query.py`, `tests/test_validation.py`, `tests/test_active_filters_ui.py`)
-- Django test utilities (`RequestFactory`, `QueryDict`) used in `tests/test_admin_filters.py`, `tests/test_autocomplete_admin_endpoint.py`, `tests/test_state.py`
+- pytest (imported and used in multiple tests, e.g., `tests/test_query.py`, `tests/test_autocomplete.py`, `tests/test_admin_filters.py`).
+- Django test utilities (`RequestFactory`, `AdminSite`) used for integration-style tests in `tests/test_admin_filters.py` and `tests/test_autocomplete_admin_endpoint.py`.
 
 **Build/Dev:**
-- Not detected (no linter/formatter/build config files such as `pyproject.toml`, `setup.cfg`, `tox.ini`, `noxfile`, or CI config detected)
+- Not detected (no lint/type/build config files such as `ruff.toml`, `mypy.ini`, `tox.ini`, `.pre-commit-config.yaml`, or CI workflow files found).
 
 ## Key Dependencies
 
 **Critical:**
-- `django` - Core admin mixin contract, URL routing, templates, request/response objects in `django_smart_filters/admin.py`
-- Python stdlib (`dataclasses`, `typing`, `collections.abc`, `datetime`) - Data modeling and normalization logic in `django_smart_filters/autocomplete.py`, `django_smart_filters/query.py`, `django_smart_filters/declarations.py`
+- `django` - core platform dependency for admin extensibility and request/response handling; directly imported in `django_smart_filters/admin.py` and test modules under `tests/`.
 
 **Infrastructure:**
-- Browser Fetch API - Autocomplete HTTP calls in `django_smart_filters/static/django_smart_filters/autocomplete.js`
-- Django staticfiles/template loaders - Template and JS asset wiring in `django_smart_filters/templates/admin/django_smart_filters/filter_controls.html`
+- `pytest` - testing runner patterns and assertions used across `tests/*.py`.
+- Python stdlib modules (`dataclasses`, `typing`, `collections.abc`, `datetime`) - foundational internal contracts and normalization logic in `django_smart_filters/contracts.py`, `django_smart_filters/theme.py`, `django_smart_filters/query.py`.
 
 ## Configuration
 
 **Environment:**
-- Runtime env var contract: Not detected (no `os.environ`/`getenv` usage in library code)
-- Test-only Django settings are defined inline via `settings.configure(...)` in `tests/test_admin_filters.py`, `tests/test_autocomplete_ui.py`, and `tests/test_autocomplete_admin_endpoint.py`
+- Production/runtime environment configuration file is not detected in repository root (no committed `.env*` files found).
+- Test-local Django settings are configured inline via `settings.configure(...)` in `tests/test_admin_filters.py`, `tests/test_autocomplete_admin_endpoint.py`, `tests/test_autocomplete_ui.py`, and `tests/test_theme_adapters.py`.
+- Required test settings pattern includes `INSTALLED_APPS`, `DATABASES` (SQLite in-memory), `ROOT_URLCONF`, and `TEMPLATES` in those test files.
 
 **Build:**
-- Build metadata/config files: Not detected (`pyproject.toml`, `setup.py`, `setup.cfg`, and requirements files are absent)
-- Local repo ignores virtualenv and IDE artifacts via `.gitignore`
+- Build configuration files not detected (`pyproject.toml`, `setup.cfg`, `setup.py`, `tox.ini`, GitHub Actions workflow files all absent).
 
 ## Platform Requirements
 
 **Development:**
-- Python environment with Django and pytest installed (imports required by `django_smart_filters/*.py` and `tests/*.py`)
-- Browser-capable Django admin page for JS-enhanced autocomplete from `django_smart_filters/static/django_smart_filters/autocomplete.js`
+- Use a Python environment with Django and pytest installed to run and validate modules in `django_smart_filters/` and `tests/`.
+- Ensure Django template/static loading works for package templates and assets under `django_smart_filters/templates/` and `django_smart_filters/static/`.
 
 **Production:**
-- Django Admin integration target (mixin intended for `ModelAdmin` subclasses in `django_smart_filters/admin.py`)
-- Database backend provided by host Django project (this repo itself only configures in-memory SQLite inside tests)
+- Deployment target is Django Admin within a Django application; this repository provides a reusable package layer (`django_smart_filters/`) rather than a standalone deployed service.
 
 ---
 
-*Stack analysis: 2026-04-20*
+*Stack analysis: 2026-04-21*

@@ -235,9 +235,9 @@ MIT License (recommended)
 
 ## Implementation Guides
 
-Official extension and theming docs:
+Official architecture, extension, and theming docs:
 
-* `docs/extension_hooks.md`
-* `docs/theme_adapters.md`
-* `docs/examples.md`
-
+* [`docs/architecture.md`](file:///c:/my/django-admin-enhanced-filters/docs/architecture.md) (Comprehensive Architecture Reference)
+* [`docs/extension_hooks.md`](file:///c:/my/django-admin-enhanced-filters/docs/extension_hooks.md)
+* [`docs/theme_adapters.md`](file:///c:/my/django-admin-enhanced-filters/docs/theme_adapters.md)
+* [`docs/examples.md`](file:///c:/my/django-admin-enhanced-filters/docs/examples.md)
