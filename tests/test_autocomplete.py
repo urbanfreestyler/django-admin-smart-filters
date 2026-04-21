@@ -2,18 +2,20 @@ from __future__ import annotations
 
 import pytest
 
-from django_smart_filters.autocomplete import (
+from django_admin_smart_filters.autocomplete import (
     DEFAULT_AUTOCOMPLETE_PAGE_SIZE,
     MAX_AUTOCOMPLETE_PAGE_SIZE,
     MIN_AUTOCOMPLETE_QUERY_LENGTH,
     parse_autocomplete_request,
     search_autocomplete_options,
 )
-from django_smart_filters.builder import Filter
+from django_admin_smart_filters.builder import Filter
 
 
 class RecordingValuesList:
-    def __init__(self, rows: list[tuple[int, str]], calls: list[tuple[str, object]]) -> None:
+    def __init__(
+        self, rows: list[tuple[int, str]], calls: list[tuple[str, object]]
+    ) -> None:
         self._rows = rows
         self.calls = calls
 
@@ -110,7 +112,9 @@ def test_search_autocomplete_options_returns_minimal_payload_shape() -> None:
     assert set(page.results[0].keys()) == {"id", "value", "label"}
 
 
-def test_search_autocomplete_options_paginates_deterministically_by_label_then_pk() -> None:
+def test_search_autocomplete_options_paginates_deterministically_by_label_then_pk() -> (
+    None
+):
     rows = [
         (4, "Beta"),
         (2, "Alpha"),
@@ -120,13 +124,20 @@ def test_search_autocomplete_options_paginates_deterministically_by_label_then_p
     ]
     queryset = RecordingAutocompleteQuerySet(rows)
 
-    page1_request = parse_autocomplete_request(_spec(), {"query": "a", "page": "1", "limit": "2"})
-    page2_request = parse_autocomplete_request(_spec(), {"query": "a", "page": "2", "limit": "2"})
-    page3_request = parse_autocomplete_request(_spec(), {"query": "a", "page": "3", "limit": "2"})
+    page1_request = parse_autocomplete_request(
+        _spec(), {"query": "a", "page": "1", "limit": "2"}
+    )
+    page2_request = parse_autocomplete_request(
+        _spec(), {"query": "a", "page": "2", "limit": "2"}
+    )
 
     # Use valid query length while still matching all rows.
-    page1_request = parse_autocomplete_request(_spec(), {"query": "Al", "page": "1", "limit": "2"})
-    page2_request = parse_autocomplete_request(_spec(), {"query": "Al", "page": "2", "limit": "2"})
+    page1_request = parse_autocomplete_request(
+        _spec(), {"query": "Al", "page": "1", "limit": "2"}
+    )
+    page2_request = parse_autocomplete_request(
+        _spec(), {"query": "Al", "page": "2", "limit": "2"}
+    )
 
     page1 = search_autocomplete_options(queryset, page1_request)
     page2 = search_autocomplete_options(queryset, page2_request)
@@ -144,7 +155,9 @@ def test_search_autocomplete_options_pagination_has_next_and_offset_slice() -> N
     rows = [(1, "Alpha"), (2, "Alpine"), (3, "Alto")]
     queryset = RecordingAutocompleteQuerySet(rows)
 
-    request = parse_autocomplete_request(_spec(), {"query": "Al", "page": "1", "limit": "2"})
+    request = parse_autocomplete_request(
+        _spec(), {"query": "Al", "page": "1", "limit": "2"}
+    )
     page = search_autocomplete_options(queryset, request)
 
     assert page.page == 1
