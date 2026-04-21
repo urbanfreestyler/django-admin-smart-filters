@@ -17,7 +17,7 @@ Django admins can quickly find the records they need through fast, extensible, a
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | REL-01 | Phase 1 | Complete |
-| REL-02 | Phase 2 | Pending |
+| REL-02 | Phase 2 | Complete |
 | REL-03 | Phase 3 | Pending |
 | REL-04 | Phase 4 | Pending |
 

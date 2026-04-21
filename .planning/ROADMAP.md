@@ -32,7 +32,8 @@ This roadmap covers the v1.1 "Release Readiness" milestone, focusing on renaming
   1. Running the build process produces valid `.tar.gz` (sdist) and `.whl` (wheel) files
   2. The generated wheel can be installed via `pip` in a clean Python virtual environment
   3. Importing `django_admin_smart_filters` in the clean environment succeeds without missing dependencies
-**Plans**: TBD
+**Plans**: 1 plans
+- [x] 02-01-PLAN.md — Verify pip build and isolate environments
 
 ### Phase 3: Automated Quality Gates
 **Goal**: Every commit is automatically verified for correctness before a release is cut.
