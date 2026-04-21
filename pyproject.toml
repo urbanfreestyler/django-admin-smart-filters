@@ -42,6 +42,7 @@ pythonpath = [".", "test_project"]
 [tool.mypy]
 python_version = "3.12"
 plugins = ["mypy_django_plugin.main"]
+mypy_path = "test_project"
 
 [tool.django-stubs]
 django_settings_module = "core.settings"

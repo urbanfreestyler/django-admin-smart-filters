@@ -86,7 +86,7 @@ def normalize_declarations(declarations: Iterable[object]) -> list[FilterSpec]:
         if hasattr(declaration, "to_spec"):
             spec = declaration.to_spec()
         else:
-            spec = normalize_class_declaration(declaration)
+            spec = normalize_class_declaration(declaration)  # type: ignore[arg-type]
         specs.append(spec)
     _validate_param_collisions(specs)
     return specs

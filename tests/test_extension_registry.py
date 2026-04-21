@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from typing import Any, Mapping
+
 import pytest
 
-from django_smart_filters.builder import Filter
-from django_smart_filters.contracts import FilterComponent, FilterSpec
-from django_smart_filters.declarations import ClassFilterDeclaration, normalize_class_declaration
-from django_smart_filters.registry import (
+from django_admin_smart_filters.builder import Filter
+from django_admin_smart_filters.contracts import FilterComponent, FilterSpec
+from django_admin_smart_filters.declarations import (
+    ClassFilterDeclaration,
+    normalize_class_declaration,
+)
+from django_admin_smart_filters.registry import (
     clear_filter_component_registry,
     register_filter_component,
     resolve_filter_component,
@@ -51,7 +56,9 @@ def test_fluent_builder_hooks_preserved_in_normalized_spec() -> None:
     def query_hook(queryset: object, value: object, spec: FilterSpec) -> object:
         return queryset
 
-    def widget_hook(widget_context: dict[str, object], spec: FilterSpec) -> dict[str, object]:
+    def widget_hook(
+        widget_context: Mapping[str, Any], spec: FilterSpec
+    ) -> Mapping[str, Any]:
         return widget_context
 
     spec = (

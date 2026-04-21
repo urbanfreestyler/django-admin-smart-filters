@@ -10,10 +10,9 @@ from django.contrib.admin.sites import AdminSite
 from django.db import models
 from django.test import RequestFactory
 
-from django_smart_filters.builder import Filter
-from django_smart_filters.declarations import DropdownFilter
-from django_smart_filters.theme import ThemeAdapter
-
+from django_admin_smart_filters.builder import Filter
+from django_admin_smart_filters.declarations import DropdownFilter
+from django_admin_smart_filters.theme import ThemeAdapter
 
 if not settings.configured:
     settings.configure(
@@ -25,7 +24,9 @@ if not settings.configured:
             "django.contrib.contenttypes",
             "django.contrib.sessions",
         ],
-        DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}},
+        DATABASES={
+            "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}
+        },
         MIDDLEWARE=[],
         ROOT_URLCONF=__name__,
         TEMPLATES=[
@@ -33,7 +34,11 @@ if not settings.configured:
                 "BACKEND": "django.template.backends.django.DjangoTemplates",
                 "APP_DIRS": True,
                 "DIRS": [
-                    str(Path(__file__).resolve().parents[1] / "django_smart_filters" / "templates")
+                    str(
+                        Path(__file__).resolve().parents[1]
+                        / "django_admin_smart_filters"
+                        / "templates"
+                    )
                 ],
             }
         ],
@@ -71,7 +76,7 @@ class _BaseSmartAdmin(admin.ModelAdmin):
 
 
 def _admin_class(declarations):
-    from django_smart_filters.admin import SmartFilterAdminMixin
+    from django_admin_smart_filters.admin import SmartFilterAdminMixin
 
     class TestAdmin(SmartFilterAdminMixin, _BaseSmartAdmin):
         smart_filters = declarations
@@ -104,11 +109,16 @@ def _all_filter_declarations():
             {"created_start": "2026-01-01", "created_end": "2026-01-31"},
             [{"created__gte": "2026-01-01"}, {"created__lte": "2026-01-31"}],
         ),
-        ({"score_min": "10", "score_max": "20"}, [{"score__gte": 10.0}, {"score__lte": 20.0}]),
+        (
+            {"score_min": "10", "score_max": "20"},
+            [{"score__gte": 10.0}, {"score__lte": 20.0}],
+        ),
         ({"active": "true"}, [{"active": True}]),
     ],
 )
-def test_each_built_in_kind_filters_queryset_from_get_params(data, expected_calls) -> None:
+def test_each_built_in_kind_filters_queryset_from_get_params(
+    data, expected_calls
+) -> None:
     admin_instance = _make_admin(_all_filter_declarations())
     request = RequestFactory().get("/admin/tests/adminfiltertestmodel/", data=data)
 
@@ -118,14 +128,18 @@ def test_each_built_in_kind_filters_queryset_from_get_params(data, expected_call
 
 
 def test_class_style_and_fluent_declarations_share_normalization_path() -> None:
-    class_style_admin = _make_admin([
-        DropdownFilter("status"),
-        DropdownFilter("category", alias="cat"),
-    ])
-    fluent_admin = _make_admin([
-        Filter.field("status").dropdown(),
-        Filter.field("category").as_alias("cat").dropdown(),
-    ])
+    class_style_admin = _make_admin(
+        [
+            DropdownFilter("status"),
+            DropdownFilter("category", alias="cat"),
+        ]
+    )
+    fluent_admin = _make_admin(
+        [
+            Filter.field("status").dropdown(),
+            Filter.field("category").as_alias("cat").dropdown(),
+        ]
+    )
 
     class_specs = class_style_admin.get_smart_filter_specs()
     fluent_specs = fluent_admin.get_smart_filter_specs()
@@ -136,17 +150,29 @@ def test_class_style_and_fluent_declarations_share_normalization_path() -> None:
 def test_default_admin_usage_requires_no_changelist_replacement() -> None:
     admin_instance = _make_admin(_all_filter_declarations())
 
-    assert admin_instance.change_list_template is None
+    assert admin_instance.change_list_template == "admin/change_list.html"
 
 
 def test_changelist_context_includes_all_five_filter_kinds_and_templates() -> None:
     admin_instance = _make_admin(_all_filter_declarations())
-    request = RequestFactory().get("/admin/tests/adminfiltertestmodel/", data={"status": "open"})
+    request = RequestFactory().get(
+        "/admin/tests/adminfiltertestmodel/", data={"status": "open"}
+    )
 
     context = admin_instance.changelist_view(request)
 
-    assert context["smart_filter_controls_template"] == "admin/django_smart_filters/theme/default/filter_controls.html"
-    assert context["smart_filter_active_bar_template"] == "admin/django_smart_filters/theme/default/active_filters_bar.html"
+    assert (
+        context["smart_filter_controls_template"]
+        == "admin/django_admin_smart_filters/theme/default/filter_controls.html"
+    )
+    assert (
+        context["smart_filter_active_bar_template"]
+        == "admin/django_admin_smart_filters/theme/default/active_filters_bar.html"
+    )
+
+    # Verify that the new change_list.html template is being picked up
+    admin_instance = _make_admin(_all_filter_declarations())
+    assert admin_instance.change_list_template == "admin/change_list.html"
 
     controls = context["filter_controls"]
     assert len(controls) == 6
@@ -165,7 +191,11 @@ def test_autocomplete_control_context_includes_endpoint_and_page_metadata() -> N
     request = RequestFactory().get("/admin/tests/adminfiltertestmodel/")
 
     context = admin_instance.changelist_view(request)
-    autocomplete_control = next(control for control in context["filter_controls"] if control["kind"] == "autocomplete")
+    autocomplete_control = next(
+        control
+        for control in context["filter_controls"]
+        if control["kind"] == "autocomplete"
+    )
 
     assert autocomplete_control["endpoint_url"].endswith("/smart-filters/autocomplete/")
     assert autocomplete_control["min_query_length"] == 2
@@ -204,21 +234,31 @@ def test_active_bar_html_renders_remove_links_and_reset_control() -> None:
     assert "?category__in=beta&amp;page=3&amp;status=open" in html
 
 
-def test_theme_adapter_changes_render_templates_without_changing_query_semantics() -> None:
-    class AdapterAdmin(_admin_class(_all_filter_declarations())):
+def test_theme_adapter_changes_render_templates_without_changing_query_semantics() -> (
+    None
+):
+    class AdapterAdmin(_admin_class(_all_filter_declarations())):  # type: ignore[misc]
         smart_filter_theme_adapter = ThemeAdapter(
             name="compat",
-            controls_template="admin/django_smart_filters/filter_controls.html",
-            active_bar_template="admin/django_smart_filters/active_filters_bar.html",
+            controls_template="admin/django_admin_smart_filters/filter_controls.html",
+            active_bar_template="admin/django_admin_smart_filters/active_filters_bar.html",
         )
 
     admin_instance = AdapterAdmin(AdminFilterTestModel, AdminSite())
-    request = RequestFactory().get("/admin/tests/adminfiltertestmodel/", data={"status": "open"})
+    request = RequestFactory().get(
+        "/admin/tests/adminfiltertestmodel/", data={"status": "open"}
+    )
 
     queryset = admin_instance.get_queryset(request)
     context = admin_instance.changelist_view(request)
 
     assert queryset.calls == [{"status": "open"}]
     assert context["smart_filter_theme_adapter"] == "compat"
-    assert context["smart_filter_controls_template"] == "admin/django_smart_filters/filter_controls.html"
-    assert context["smart_filter_active_bar_template"] == "admin/django_smart_filters/active_filters_bar.html"
+    assert (
+        context["smart_filter_controls_template"]
+        == "admin/django_admin_smart_filters/filter_controls.html"
+    )
+    assert (
+        context["smart_filter_active_bar_template"]
+        == "admin/django_admin_smart_filters/active_filters_bar.html"
+    )

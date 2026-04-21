@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import django
 from django.conf import settings
@@ -10,9 +11,8 @@ from django.contrib.admin.sites import AdminSite
 from django.db import models
 from django.test import RequestFactory
 
-from django_smart_filters.admin import SmartFilterAdminMixin
-from django_smart_filters.builder import Filter
-
+from django_admin_smart_filters.admin import SmartFilterAdminMixin
+from django_admin_smart_filters.builder import Filter
 
 if not settings.configured:
     settings.configure(
@@ -24,7 +24,9 @@ if not settings.configured:
             "django.contrib.contenttypes",
             "django.contrib.sessions",
         ],
-        DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}},
+        DATABASES={
+            "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}
+        },
         MIDDLEWARE=[],
         ROOT_URLCONF=__name__,
         TEMPLATES=[
@@ -32,7 +34,11 @@ if not settings.configured:
                 "BACKEND": "django.template.backends.django.DjangoTemplates",
                 "APP_DIRS": True,
                 "DIRS": [
-                    str(Path(__file__).resolve().parents[1] / "django_smart_filters" / "templates")
+                    str(
+                        Path(__file__).resolve().parents[1]
+                        / "django_admin_smart_filters"
+                        / "templates"
+                    )
                 ],
             }
         ],
@@ -54,7 +60,7 @@ class InMemoryQuerySet:
     def __init__(self, rows: list[dict[str, object]]) -> None:
         self._rows = rows
 
-    def filter(self, **kwargs: object) -> "InMemoryQuerySet":
+    def filter(self, **kwargs: Any) -> "InMemoryQuerySet":
         rows = self._rows
         for key, value in kwargs.items():
             if key.endswith("__icontains"):
@@ -63,7 +69,7 @@ class InMemoryQuerySet:
                 rows = [row for row in rows if needle in str(row[field]).lower()]
             elif key.endswith("__in"):
                 field = key[: -len("__in")]
-                allowed = {str(item) for item in value}  # type: ignore[arg-type]
+                allowed = {str(item) for item in value}  # type: ignore[attr-defined, arg-type]
                 rows = [row for row in rows if str(row[field]) in allowed]
             else:
                 rows = [row for row in rows if row[key] == value]
@@ -74,7 +80,7 @@ class InMemoryQuerySet:
         for field in reversed(fields):
             descending = field.startswith("-")
             key = field[1:] if descending else field
-            ordered.sort(key=lambda row: row[key], reverse=descending)
+            ordered.sort(key=lambda row: row[key], reverse=descending)  # type: ignore[arg-type, return-value]
         return InMemoryQuerySet(ordered)
 
     def values_list(self, *fields: str):
@@ -134,7 +140,9 @@ def test_autocomplete_endpoint_result_payload_is_minimal_shape() -> None:
     payload = _payload(response)
 
     assert payload["results"]
-    assert all(set(item.keys()) == {"id", "value", "label"} for item in payload["results"])
+    assert all(
+        set(item.keys()) == {"id", "value", "label"} for item in payload["results"]
+    )
 
 
 def test_autocomplete_endpoint_applies_server_side_text_filter() -> None:
@@ -185,7 +193,9 @@ def test_autocomplete_endpoint_rejects_unknown_or_non_autocomplete_fields() -> N
         "/admin/tests/autocompleteadmintestmodel/smart-filters/autocomplete/",
         data={"field": "status", "query": "op"},
     )
-    non_autocomplete_response = admin_instance.smart_filter_autocomplete_view(non_autocomplete)
+    non_autocomplete_response = admin_instance.smart_filter_autocomplete_view(
+        non_autocomplete
+    )
     assert non_autocomplete_response.status_code == 400
     assert "invalid" in _payload(non_autocomplete_response)["error"].lower()
 
