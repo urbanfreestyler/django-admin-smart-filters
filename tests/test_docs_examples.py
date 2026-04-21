@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from django_smart_filters import clear_filter_component_registry
+from django_admin_smart_filters.registry import clear_filter_component_registry
 
 
 def _docs_root() -> Path:
@@ -46,7 +46,7 @@ def test_custom_component_registration_snippet_executes() -> None:
 def test_theme_adapter_snippet_uses_valid_template_contract_paths() -> None:
     docs_path = _docs_root() / "theme_adapters.md"
     content = docs_path.read_text(encoding="utf-8")
-    assert "templates/admin/django_smart_filters/theme/default/" in content
+    assert "templates/admin/django_admin_smart_filters/theme/default/" in content
 
     snippet = _extract_python_block(docs_path, "docs:theme-adapter-config")
     namespace: dict[str, object] = {}
@@ -54,5 +54,5 @@ def test_theme_adapter_snippet_uses_valid_template_contract_paths() -> None:
 
     adapter = namespace.get("adapter")
     assert adapter is not None
-    assert str(getattr(adapter, "controls_template", "")).startswith("admin/django_smart_filters/")
-    assert str(getattr(adapter, "active_bar_template", "")).startswith("admin/django_smart_filters/")
+    assert str(getattr(adapter, "controls_template", "")).startswith("admin/django_admin_smart_filters/")
+    assert str(getattr(adapter, "active_bar_template", "")).startswith("admin/django_admin_smart_filters/")

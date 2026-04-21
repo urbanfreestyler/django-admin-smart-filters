@@ -35,12 +35,13 @@ target-version = "py312"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "--ds=tests.settings"
+addopts = "--ds=core.settings"
 testpaths = ["tests"]
+pythonpath = [".", "test_project"]
 
 [tool.mypy]
 python_version = "3.12"
 plugins = ["mypy_django_plugin.main"]
 
 [tool.django-stubs]
-django_settings_module = "tests.settings"
+django_settings_module = "core.settings"
